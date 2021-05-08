@@ -139,7 +139,7 @@ Texture2D * load_texture(const char *path, uint32_t chroma_key) {
 }
 
 void destroy_texture(Texture2D **texture) {
-    if(texture) {
+    if(texture && *texture) {
         free(*texture);
         *texture = NULL;
     }

@@ -10,7 +10,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include <time.h>
+
+#include "../platform.h"
 
 #include "../glfuncs.h"
 #include "../game.c"
@@ -81,8 +84,6 @@ DWORD WINAPI win_game_init_and_run(LPVOID parameter) {
     HDC device_context = GetDC(window);
     HGLRC rendering_context = win_setup_opengl(device_context);
 
-    initialize_game();
-
     float elapsed_time = 0.0f;
     LARGE_INTEGER perf_freq;
     LARGE_INTEGER current_time;
@@ -90,12 +91,8 @@ DWORD WINAPI win_game_init_and_run(LPVOID parameter) {
     QueryPerformanceFrequency(&perf_freq);
     QueryPerformanceCounter(&current_time);
 
-    uint32_t *fb = get_framebuffer();
-
     while(game_env_data.running) {
         update_loop(elapsed_time, game_env_data.input);
-
-        memset(fb, 0, sizeof(fb[0]) * DEFAULT_FRAMEBUFFER_WIDTH * DEFAULT_FRAMEBUFFER_HEIGHT);
 
         render_loop();
         SwapBuffers(device_context);
@@ -163,6 +160,12 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev, LPSTR args, int cmd_show)
                                   instance,
                                   NULL);
 
+#ifdef CREATE_BORDERLESS_WINDOW
+    // Need to do this here for some reason. This makes sure it doesn't open up in exclusive fullscreen mode
+    SetWindowLong(window, GWL_STYLE, WS_POPUP | WS_MINIMIZEBOX);
+    ShowWindow(window, SW_SHOW);
+#endif
+
     WIN_CHECK_CREATION_ERROR(window, "Could not create window!\n");
 
     // We run the game on a different thread, so it doesn't freeze when dragging the window around
@@ -190,25 +193,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev, LPSTR args, int cmd_show)
     DestroyWindow(window);
 
     return 0;
-}
-
-static inline void check_gl_status(GLuint id, GLenum parameter) {
-    GLint status;
-    static char error_log[512];
-
-    if(parameter == GL_COMPILE_STATUS) {
-        glGetShaderiv(id, parameter, &status);
-        if(status != GL_TRUE) {
-            glGetShaderInfoLog(id, sizeof(error_log), NULL, error_log);
-            WIN_CHECK_CREATION_ERROR(status == 1, "Could not compile the shader!\n");
-        }
-    } else if(parameter == GL_LINK_STATUS) {
-        glGetProgramiv(id, parameter, &status);
-        if(status != GL_TRUE) {
-            glGetProgramInfoLog(id, sizeof(error_log), NULL, error_log);
-            WIN_CHECK_CREATION_ERROR(status == 1, "Could not link the GL program!\n");
-        }
-    }
 }
 
 HGLRC win_setup_opengl(HDC device_context) {
@@ -275,104 +259,87 @@ HGLRC win_setup_opengl(HDC device_context) {
 
     wglSwapIntervalEXT(1);
 
-    // TODO: This should be moved to the game instead
-    // Setup core OpenGL
-    static const char *vertex_shader_source = {
-        "#version 330 core\n"
-        "layout(location = 0) in vec2 pos;\n"
-        "layout(location = 1) in vec2 uvs;\n"
-        "out vec2 texcoords;\n"
-        "void main(void) {\n"
-        "    texcoords = vec2(uvs.s, 1.0 - uvs.t);\n"
-        "    gl_Position = vec4(pos, 0.0, 1.0);\n"
-        "}"
-    };
-    static const char *fragment_shader_source = {
-        "#version 330 core\n"
-        "uniform sampler2D sampler;\n"
-        "in vec2 texcoords;\n"
-        "out vec4 out_color;\n"
-        "void main(void) {\n"
-        "    out_color = texture(sampler, texcoords);\n"
-        "}"
-    };
-    GLuint program = glCreateProgram();
-    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-
-    glShaderSource(vertex_shader, 1, &vertex_shader_source, NULL);
-    glShaderSource(fragment_shader, 1, &fragment_shader_source, NULL);
-
-    glCompileShader(vertex_shader);
-    check_gl_status(vertex_shader, GL_COMPILE_STATUS);
-    glCompileShader(fragment_shader);
-    check_gl_status(fragment_shader, GL_COMPILE_STATUS);
-
-    glAttachShader(program, vertex_shader);
-    glAttachShader(program, fragment_shader);
-
-    glLinkProgram(program);
-    check_gl_status(program, GL_LINK_STATUS);
-
-    glUseProgram(program);
-
-    glDetachShader(program, vertex_shader);
-    glDetachShader(program, fragment_shader);
-
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
-
-    static const GLfloat vertex_buffer_data[] = {
-        // Position       // UV coordinates
-        -1.0f, -1.0f,     0.0f, 0.0f,
-         1.0f, -1.0f,     1.0f, 0.0f,
-         1.0f,  1.0f,     1.0f, 1.0f,
-
-         1.0f,  1.0f,     1.0f, 1.0f,
-        -1.0f,  1.0f,     0.0f, 1.0f,
-        -1.0f, -1.0f,     0.0f, 0.0f,
-    };
-
-    GLuint vao, vbo;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_buffer_data), vertex_buffer_data, GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 4, NULL);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 4, (const void *)(2 * sizeof(GLfloat)));
-
-    glEnable(GL_TEXTURE_2D);
-    GLuint framebuffer_texture;
-    glGenTextures(1, &framebuffer_texture);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, framebuffer_texture);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT,
-                 0, GL_RGBA, GL_UNSIGNED_BYTE, get_framebuffer());
-
-    float aspect_ratio = (float)DEFAULT_FRAMEBUFFER_WIDTH / (float)DEFAULT_FRAMEBUFFER_HEIGHT;
-    float w = DEFAULT_WINDOW_WIDTH;
-    float h = w / aspect_ratio;
-
-    if(h > DEFAULT_WINDOW_HEIGHT) {
-        h = DEFAULT_WINDOW_HEIGHT;
-        w = h * aspect_ratio;
-    }
-
-    GLint x = (DEFAULT_WINDOW_WIDTH - (GLint)w) / 2;
-    GLint y = (DEFAULT_WINDOW_HEIGHT - (GLint)h) / 2;
-
-    glViewport(x, y, (GLsizei)w, (GLsizei)h);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    initialize_game();
 
     return rendering_context;
+}
+
+static HANDLE level_dir_handle;
+
+Level * get_next_level_from_disk(void) {
+    static char buf[9999];
+    WIN32_FIND_DATAA file_data;
+
+    if(level_dir_handle) {
+        if(!FindNextFileA(level_dir_handle, &file_data)) {
+            FindClose(level_dir_handle);
+            level_dir_handle = NULL;
+        }
+    }
+
+    if(!level_dir_handle) {
+        level_dir_handle = FindFirstFileA("data/level/*.txt", &file_data);
+    }
+
+    if(level_dir_handle) {
+        snprintf(buf, sizeof(buf), "data/level/%s", file_data.cFileName);
+        FILE *f = fopen(buf, "rb");
+
+        if(f) {
+            static const char *delims = " ,\n\r";
+
+            int row_count = 0;
+            int max_column_count = 0;
+
+            // First determine how many tiles there are
+            while(fgets(buf, sizeof(buf), f)) {
+                row_count++;
+                int column_count = 0;
+
+                char *token;
+                char *b = buf;
+                while((token = strtok(b, delims)) != NULL) {
+                    b = NULL;
+                    column_count++;
+                }
+
+                if(column_count > max_column_count) {
+                    max_column_count = column_count;
+                }
+            }
+
+            fseek(f, 0, SEEK_SET);
+
+            Level *level = calloc(1, offsetof(struct Level, data) + (row_count * max_column_count * sizeof(uint32_t)));
+            level->rows = row_count;
+            level->columns = max_column_count;
+
+            // Parse the level/tile data
+            int index = 0;
+            while(fgets(buf, sizeof(buf), f)) {
+                char *token;
+                char *b = buf;
+
+                while((token = strtok(b, delims)) != NULL) {
+                    int value = atoi(token);
+                    switch(value) {
+                        case -1:
+                            level->data[index] = TILE_TYPE_EMPTY;
+                            break;
+                        default:
+                            level->data[index] = value;
+                            break;
+                    }
+
+                    b = NULL;
+                    index++;
+                }
+            }
+
+            fclose(f);
+            return level;
+        }
+    }
+
+    return NULL;
 }

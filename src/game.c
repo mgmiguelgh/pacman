@@ -12,6 +12,7 @@
 
 #include "game.h"
 
+#include "level.c"
 #include "texture.c"
 #include "render.c"
 
@@ -22,63 +23,74 @@
 #define CHASE_MODE_TIME 20.0f
 #define FRIGHTENED_MODE_TIME 10.0f
 #define INPUT_QUEUE_TIME_MAX 1.0f
-#define MAX(a, b) (((a) >= (b)) ? (a) : (b))
 
 static const Rect atlas_sprites[ATLAS_SPRITE_COUNT] = {
-    [ATLAS_SPRITE_PLAYER_F1] = { .x = 64, .y = 0, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_PLAYER_F2] = { .x = 80, .y = 0, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_WALL] = { .x = 96, .y = 0, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_PELLET] = { .x = 112, .y = 0, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_POWER_PELLET] = { .x = 128, .y = 0, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_CYAN_GHOST_UP] = { .x = 0, .y = 16, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_CYAN_GHOST_LEFT] = { .x = 16, .y = 0, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_CYAN_GHOST_DOWN] = { .x = 0, .y = 0, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_CYAN_GHOST_RIGHT] = { .x = 16, .y = 16, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_CYAN_GHOST_FRIGHTENED] = { .x = 0, .y = 64, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_PINK_GHOST_UP] = { .x = 32, .y = 16, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_PINK_GHOST_LEFT] = { .x = 48, .y = 0, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_PINK_GHOST_DOWN] = { .x = 32, .y = 0, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_PINK_GHOST_RIGHT] = { .x = 48, .y = 16, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_PINK_GHOST_FRIGHTENED] = { .x = 16, .y = 64, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_RED_GHOST_UP] = { .x = 0, .y = 48, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_RED_GHOST_LEFT] = { .x = 16, .y = 32, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_RED_GHOST_DOWN] = { .x = 0, .y = 32, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_RED_GHOST_RIGHT] = { .x = 16, .y = 48, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_RED_GHOST_FRIGHTENED] = { .x = 0, .y = 80, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_ORANGE_GHOST_UP] = { .x = 32, .y = 48, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_ORANGE_GHOST_LEFT] = { .x = 48, .y = 32, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_ORANGE_GHOST_DOWN] = { .x = 32, .y = 32, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_ORANGE_GHOST_RIGHT] = { .x = 48, .y = 48, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_ORANGE_GHOST_FRIGHTENED] = { .x = 16, .y = 80, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_GHOST_EATEN_UP] = { .x = 32, .y = 80, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_GHOST_EATEN_LEFT] = { .x = 48, .y = 64, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_GHOST_EATEN_DOWN] = { .x = 32, .y = 64, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_GHOST_EATEN_RIGHT] = { .x = 48, .y = 80, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_GHOST_HOUSE_GATE] = { .x = 80, .y = 16, .width = 16, .height = 16 },
+    [ATLAS_SPRITE_PLAYER_F1] = { .x = 128, .y = 0, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_PLAYER_F2] = { .x = 160, .y = 0, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_WALL] = { .x = 192, .y = 0, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_PELLET] = { .x = 224, .y = 0, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_POWER_PELLET] = { .x = 256, .y = 0, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_CYAN_GHOST_UP] = { .x = 0, .y = 32, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_CYAN_GHOST_LEFT] = { .x = 32, .y = 0, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_CYAN_GHOST_DOWN] = { .x = 0, .y = 0, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_CYAN_GHOST_RIGHT] = { .x = 32, .y = 32, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_CYAN_GHOST_FRIGHTENED] = { .x = 0, .y = 128, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_PINK_GHOST_UP] = { .x = 64, .y = 32, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_PINK_GHOST_LEFT] = { .x = 96, .y = 0, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_PINK_GHOST_DOWN] = { .x = 64, .y = 0, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_PINK_GHOST_RIGHT] = { .x = 96, .y = 32, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_PINK_GHOST_FRIGHTENED] = { .x = 32, .y = 128, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_RED_GHOST_UP] = { .x = 0, .y = 96, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_RED_GHOST_LEFT] = { .x = 32, .y = 64, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_RED_GHOST_DOWN] = { .x = 0, .y = 64, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_RED_GHOST_RIGHT] = { .x = 32, .y = 64, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_RED_GHOST_FRIGHTENED] = { .x = 0, .y = 160, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_ORANGE_GHOST_UP] = { .x = 64, .y = 96, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_ORANGE_GHOST_LEFT] = { .x = 96, .y = 64, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_ORANGE_GHOST_DOWN] = { .x = 64, .y = 64, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_ORANGE_GHOST_RIGHT] = { .x = 96, .y = 96, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_ORANGE_GHOST_FRIGHTENED] = { .x = 32, .y = 160, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_GHOST_EATEN_UP] = { .x = 64, .y = 160, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_GHOST_EATEN_LEFT] = { .x = 96, .y = 128, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_GHOST_EATEN_DOWN] = { .x = 64, .y = 128, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_GHOST_EATEN_RIGHT] = { .x = 96, .y = 160, .width = TILE_SIZE, .height = TILE_SIZE },
+    [ATLAS_SPRITE_GHOST_HOUSE_GATE] = { .x = 160, .y = 32, .width = TILE_SIZE, .height = TILE_SIZE },
 };
 
+#if 1
 static Level test_level1 = {
+    .rows = (DEFAULT_FRAMEBUFFER_WIDTH / TILE_SIZE) + 8,
+    .columns = (DEFAULT_FRAMEBUFFER_HEIGHT / TILE_SIZE) + 8,
     .data = {
-        { 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-        { 0, 0, 0, 0, 0, 0, 0, 1, 5, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 4, 4, 4, 4, 5, 1, 0, 0, 0, 0, 0, 0 },
-        { 0, 0, 0, 0, 0, 0, 0, 1, 4, 1, 1, 4, 1, 1, 1, 4, 1, 4, 1, 1, 1, 4, 1, 1, 4, 1, 0, 0, 0, 0, 0, 0 },
-        { 0, 0, 0, 0, 0, 0, 0, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 0, 0, 0, 0, 0, 0 },
-        { 0, 0, 0, 0, 0, 0, 0, 1, 4, 1, 1, 4, 1, 4, 1, 1, 1, 1, 1, 4, 1, 4, 1, 1, 4, 1, 0, 0, 0, 0, 0, 0 },
-        { 0, 0, 0, 0, 0, 0, 0, 1, 4, 4, 4, 4, 1, 4, 4, 4, 1, 4, 4, 4, 1, 4, 4, 4, 4, 1, 0, 0, 0, 0, 0, 0 },
-        { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 1, 1, 4, 1, 4, 1, 1, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
-        { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 0, 0, 0, 8, 0, 0, 0, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
-        { 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 1, 1, 3, 1, 1, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0 },
-        { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 0, 1, 0, 0, 0, 1, 0, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
-        { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 0, 1, 11, 9, 10, 1, 0, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
-        { 0, 0, 0, 0, 0, 0, 0, 1, 4, 4, 4, 4, 1, 0, 1, 1, 1, 1, 1, 0, 1, 4, 4, 4, 4, 1, 0, 0, 0, 0, 0, 0 },
-        { 0, 0, 0, 0, 0, 0, 0, 1, 4, 1, 1, 4, 4, 0, 0, 0, 2, 0, 0, 0, 4, 4, 1, 1, 4, 1, 0, 0, 0, 0, 0, 0 },
-        { 0, 0, 0, 0, 0, 0, 0, 1, 4, 1, 1, 4, 1, 4, 1, 1, 1, 1, 1, 4, 1, 4, 1, 1, 4, 1, 0, 0, 0, 0, 0, 0 },
-        { 0, 0, 0, 0, 0, 0, 0, 1, 4, 4, 4, 4, 1, 4, 4, 4, 1, 4, 4, 4, 1, 4, 4, 4, 4, 1, 0, 0, 0, 0, 0, 0 },
-        { 0, 0, 0, 0, 0, 0, 0, 1, 4, 1, 1, 1, 1, 1, 1, 4, 1, 4, 1, 1, 1, 1, 1, 1, 4, 1, 0, 0, 0, 0, 0, 0 },
-        { 0, 0, 0, 0, 0, 0, 0, 1, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 1, 0, 0, 0, 0, 0, 0 },
-        { 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 5, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 4, 4, 4, 4, 5, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 4, 1, 1, 4, 1, 1, 1, 4, 1, 4, 1, 1, 1, 4, 1, 1, 4, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 4, 1, 1, 4, 1, 4, 1, 1, 1, 1, 1, 4, 1, 4, 1, 1, 4, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 4, 4, 4, 4, 1, 4, 4, 4, 1, 4, 4, 4, 1, 4, 4, 4, 4, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 1, 1, 4, 1, 4, 1, 1, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 0, 0, 0, 8, 0, 0, 0, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 1, 1, 3, 1, 1, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 0, 1, 0, 0, 0, 1, 0, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 0, 1, 11, 9, 10, 1, 0, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 4, 4, 4, 4, 1, 0, 1, 1, 1, 1, 1, 0, 1, 4, 4, 4, 4, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 4, 1, 1, 4, 4, 0, 0, 0, 2, 0, 0, 0, 4, 4, 1, 1, 4, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 4, 1, 1, 4, 1, 4, 1, 1, 1, 1, 1, 4, 1, 4, 1, 1, 4, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 4, 4, 4, 4, 1, 4, 4, 4, 1, 4, 4, 4, 1, 4, 4, 4, 4, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 4, 1, 1, 1, 1, 1, 1, 4, 1, 4, 1, 1, 1, 1, 1, 1, 4, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
     }
 };
+#endif
 
 static const Vector2 direction_vectors[4] = {
     { .x = 0.0f, .y = -1.0f }, // Up
@@ -90,10 +102,15 @@ static const Vector2 direction_vectors[4] = {
 static struct {
     Texture2D *atlas;
     Level *level;
+
     GhostEntity ghosts[GHOST_COUNT];
     PlayerEntity player;
+
     Timer ghost_mode_timer;
     Timer frightened_timer;
+
+    GLuint gl_program;
+
     enum {
         GAME_MODE_SCATTER,
         GAME_MODE_CHASE
@@ -102,6 +119,17 @@ static struct {
     .atlas = NULL,
     .level = NULL
 };
+
+static struct {
+    Vector2i scroll;
+    Vector2 offset;
+    float zoom;
+} game_camera;
+
+#define TILE_COUNT_X (int32_t)game_state.level->columns
+#define TILE_COUNT_Y (int32_t)game_state.level->rows
+#define LAST_TILE_X (int32_t)(game_state.level->columns - 1)
+#define LAST_TILE_Y (int32_t)(game_state.level->rows - 1)
 
 // Util functions
 static bool rect_aabb_test(const Rect *a, const Rect *b) {
@@ -146,7 +174,7 @@ static inline bool ghost_can_pass_gate(GhostEntity *ghost) {
 
 static bool tile_is_wall(const TileCoord *coord, GhostEntity *ghost) {
     if(coord) {
-        uint32_t type = game_state.level->data[coord->y][coord->x];
+        uint32_t type = get_level_tile_data(game_state.level, coord);
 
         if(ghost_can_pass_gate(ghost)) {
             ghost->target = game_state.level->gate_tile;
@@ -159,6 +187,19 @@ static bool tile_is_wall(const TileCoord *coord, GhostEntity *ghost) {
     return false;
 }
 
+static Vector2i get_entity_abs_position(const GameEntity *entity) {
+    static const float TILE_SIZE_F = (float)TILE_SIZE;
+
+    if(entity) {
+        return (Vector2i) {
+            .x = (entity->coord.x * TILE_SIZE) + (int32_t)(entity->coord.sub.x * TILE_SIZE_F),
+            .y = (entity->coord.y * TILE_SIZE) + (int32_t)(entity->coord.sub.y * TILE_SIZE_F)
+        };
+    }
+
+    return (Vector2i) { 0 };
+}
+
 // Function prototypes
 static void tilecoord_to_rect(const TileCoord *coord, Rect *rect, float scale);
 static void move_entity(GameEntity *entity, TileCoord *destination, float dt);
@@ -168,14 +209,9 @@ static void wrap_tile_coords(TileCoord *coord, bool outside_area);
 static void tile_coords_from_direction(TileCoord *coord, MovementDirection direction);
 
 static void reset_game(void) {
-    initialize_game();
-}
-
-void initialize_game(void) {
     if(!game_state.atlas) {
-        game_state.atlas = load_texture("data/texture_atlas.bmp", 0xff00ff);
+        game_state.atlas = load_texture("data/texture_atlas2x.bmp", 0xff00ff);
     }
-
     memset(&game_state.player, 0, sizeof(game_state.player));
     memset(&game_state.ghosts, 0, sizeof(game_state.ghosts));
 
@@ -187,23 +223,20 @@ void initialize_game(void) {
     game_state.frightened_timer.elapsed = 0.0f;
     game_state.frightened_timer.target = FRIGHTENED_MODE_TIME;
 
-    game_state.level = &test_level1;
-
+    game_state.level = load_next_level();
     memset(&game_state.level->gate_tile, 0, sizeof(game_state.level->gate_tile));
     game_state.level->pellet_count = 0;
     game_state.level->pellets_eaten = 0;
 
     for(int32_t y = 0; y < LAST_TILE_Y; y++) {
         for(int32_t x = 0; x < LAST_TILE_X; x++) {
-            uint32_t *tile = &game_state.level->data[y][x];
-            TileType type = *tile;
+            uint32_t *tile = get_level_tile(game_state.level, x, y);
 
-            if(type == TILE_TYPE_EATEN_PELLET) {
-                *tile = TILE_TYPE_PELLET;
-            } else if(type == TILE_TYPE_EATEN_POWER_PELLET) {
-                *tile = TILE_TYPE_POWER_PELLET;
+            if(!tile) {
+                continue;
             }
 
+            TileType type = *tile;
             switch(type) {
                 case TILE_TYPE_GHOST_HOUSE_GATE:
                     game_state.level->gate_tile.x = x;
@@ -269,6 +302,143 @@ void initialize_game(void) {
     game_state.ghosts[ORANGE_GHOST].entity.speed = game_state.ghosts[ORANGE_GHOST].entity.default_speed;
     game_state.ghosts[CYAN_GHOST].entity.default_speed = DEFAULT_MOVEMENT_SPEED - 0.75f;
     game_state.ghosts[CYAN_GHOST].entity.speed = game_state.ghosts[CYAN_GHOST].entity.default_speed;
+
+    game_camera.scroll.x = 0;
+    game_camera.scroll.y = 0;
+    game_camera.offset.x = 0.5f;
+    game_camera.offset.y = 0.5f;
+    game_camera.zoom = 1.0f;
+}
+
+static inline void check_gl_status(GLuint id, GLenum parameter) {
+    GLint status;
+    static char error_log[512];
+
+    if(parameter == GL_COMPILE_STATUS) {
+        glGetShaderiv(id, parameter, &status);
+        if(status != GL_TRUE) {
+            glGetShaderInfoLog(id, sizeof(error_log), NULL, error_log);
+            if(status == 0) {
+                fprintf(stderr, "Could not compile the shader!\n");
+                exit(-1);
+            }
+        }
+    } else if(parameter == GL_LINK_STATUS) {
+        glGetProgramiv(id, parameter, &status);
+        if(status != GL_TRUE) {
+            glGetProgramInfoLog(id, sizeof(error_log), NULL, error_log);
+            if(status == 0) {
+                fprintf(stderr, "Could not link the GL program!\n");
+                exit(-1);
+            }
+        }
+    }
+}
+
+static void initialize_opengl(void) {
+    // Setup core OpenGL
+    static const char *vertex_shader_source = {
+        "#version 330 core\n"
+        "layout(location = 0) in vec2 pos;\n"
+        "layout(location = 1) in vec2 uvs;\n"
+        "out vec2 texcoords;\n"
+        "uniform vec3 camera;\n"
+        "void main(void) {\n"
+        "    texcoords = ((vec2(uvs.s, 1.0 - uvs.t) - vec2(0.5))* camera.z) + camera.xy;\n"
+        "    gl_Position = vec4(pos, 0.0, 1.0);\n"
+        "}"
+    };
+    static const char *fragment_shader_source = {
+        "#version 330 core\n"
+        "uniform sampler2D sampler;\n"
+        "in vec2 texcoords;\n"
+        "out vec4 out_color;\n"
+        "void main(void) {\n"
+        "    out_color = texture(sampler, texcoords);\n"
+        "}"
+    };
+    game_state.gl_program = glCreateProgram();
+    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+
+    glShaderSource(vertex_shader, 1, &vertex_shader_source, NULL);
+    glShaderSource(fragment_shader, 1, &fragment_shader_source, NULL);
+
+    glCompileShader(vertex_shader);
+    check_gl_status(vertex_shader, GL_COMPILE_STATUS);
+    glCompileShader(fragment_shader);
+    check_gl_status(fragment_shader, GL_COMPILE_STATUS);
+
+    glAttachShader(game_state.gl_program, vertex_shader);
+    glAttachShader(game_state.gl_program, fragment_shader);
+
+    glLinkProgram(game_state.gl_program);
+    check_gl_status(game_state.gl_program, GL_LINK_STATUS);
+
+    glUseProgram(game_state.gl_program);
+
+    glDetachShader(game_state.gl_program, vertex_shader);
+    glDetachShader(game_state.gl_program, fragment_shader);
+
+    glDeleteShader(vertex_shader);
+    glDeleteShader(fragment_shader);
+
+    static const GLfloat vertex_buffer_data[] = {
+        // Position       // UV coordinates
+        -1.0f, -1.0f,     0.0f, 0.0f,
+         1.0f, -1.0f,     1.0f, 0.0f,
+         1.0f,  1.0f,     1.0f, 1.0f,
+
+         1.0f,  1.0f,     1.0f, 1.0f,
+        -1.0f,  1.0f,     0.0f, 1.0f,
+        -1.0f, -1.0f,     0.0f, 0.0f,
+    };
+
+    GLuint vao, vbo;
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_buffer_data), vertex_buffer_data, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 4, NULL);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 4, (const void *)(2 * sizeof(GLfloat)));
+
+    glEnable(GL_TEXTURE_2D);
+    GLuint framebuffer_texture;
+    glGenTextures(1, &framebuffer_texture);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, framebuffer_texture);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT,
+                 0, GL_RGBA, GL_UNSIGNED_BYTE, get_framebuffer());
+
+    float aspect_ratio = (float)DEFAULT_FRAMEBUFFER_WIDTH / (float)DEFAULT_FRAMEBUFFER_HEIGHT;
+    float w = DEFAULT_WINDOW_WIDTH;
+    float h = w / aspect_ratio;
+
+    if(h > DEFAULT_WINDOW_HEIGHT) {
+        h = DEFAULT_WINDOW_HEIGHT;
+        w = h * aspect_ratio;
+    }
+
+    GLint x = (DEFAULT_WINDOW_WIDTH - (GLint)w) / 2;
+    GLint y = (DEFAULT_WINDOW_HEIGHT - (GLint)h) / 2;
+
+    glViewport(x, y, (GLsizei)w, (GLsizei)h);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+}
+
+void initialize_game(void) {
+    initialize_opengl();
+    reset_game();
 }
 
 void close_game(void) {
@@ -338,30 +508,29 @@ void update_loop(float dt, uint32_t input) {
     MAP_INPUT_TO_MOV_DIR(LEFT);
     MAP_INPUT_TO_MOV_DIR(RIGHT);
 
-    if(!coords_within_bounds(&game_state.player.entity.coord)) {
-        // If the player is out of bounds we ignore the input
-        // and continue in the same direction
-        game_state.player.entity.dir = previous_dir;
-    }
 #undef MAP_INPUT_TO_MOV_DIR
 
     if(previous_dir != MOVEMENT_DIR_NONE) {
-        bool is_quarter_turn = float_nearly_equal(dot_product(previous_dir, game_state.player.entity.dir), 0.0f);
-        if(is_quarter_turn) {
-            bool near_center = float_nearly_equal(game_state.player.entity.coord.sub.x, 0.0f) &&
-                float_nearly_equal(game_state.player.entity.coord.sub.y, 0.0f);
+        if(coords_within_bounds(&game_state.player.entity.coord)) {
+            bool is_quarter_turn = float_nearly_equal(dot_product(previous_dir, game_state.player.entity.dir), 0.0f);
+            if(is_quarter_turn) {
+                bool near_center = float_nearly_equal(game_state.player.entity.coord.sub.x, 0.0f) &&
+                    float_nearly_equal(game_state.player.entity.coord.sub.y, 0.0f);
 
-            if(near_center) {
-                TileCoord projected = game_state.player.entity.coord;
-                tile_coords_from_direction(&projected, game_state.player.entity.dir);
-                if(tile_is_wall(&projected, NULL)) {
-                    // Make sure we're not stopped by walls if we try to
-                    // move 90 degrees clockwise or counterclockwise
+                if(near_center) {
+                    TileCoord projected = game_state.player.entity.coord;
+                    tile_coords_from_direction(&projected, game_state.player.entity.dir);
+                    if(tile_is_wall(&projected, NULL)) {
+                        // Make sure we're not stopped by walls if we try to
+                        // move 90 degrees clockwise or counterclockwise
+                        game_state.player.entity.dir = previous_dir;
+                    }
+                } else {
                     game_state.player.entity.dir = previous_dir;
                 }
-            } else {
-                game_state.player.entity.dir = previous_dir;
             }
+        } else {
+            game_state.player.entity.dir = previous_dir;
         }
     }
 
@@ -383,20 +552,23 @@ void update_loop(float dt, uint32_t input) {
         }
     }
 
-    uint32_t *player_tile = &game_state.level->data[game_state.player.entity.coord.y][game_state.player.entity.coord.x];
-    if(*player_tile == TILE_TYPE_PELLET) {
-        game_state.level->pellets_eaten++;
-        *player_tile = TILE_TYPE_EATEN_PELLET;
-    } else if(*player_tile == TILE_TYPE_POWER_PELLET) {
-        game_state.level->pellets_eaten++;
-        *player_tile = TILE_TYPE_EATEN_POWER_PELLET;
+    uint32_t *player_tile = get_level_tile(game_state.level, game_state.player.entity.coord.x,
+                                           game_state.player.entity.coord.y);
+    if(player_tile) {
+        if(*player_tile == TILE_TYPE_PELLET) {
+            game_state.level->pellets_eaten++;
+            *player_tile = TILE_TYPE_EMPTY;
+        } else if(*player_tile == TILE_TYPE_POWER_PELLET) {
+            game_state.level->pellets_eaten++;
+            *player_tile = TILE_TYPE_EMPTY;
 
-        game_state.frightened_timer.running = true;
-        game_state.frightened_timer.elapsed = 0.0f;
+            game_state.frightened_timer.running = true;
+            game_state.frightened_timer.elapsed = 0.0f;
 
-        for(int32_t i = 0; i < GHOST_COUNT; i++) {
-            if(game_state.ghosts[i].state != GHOST_STATE_EATEN) {
-                game_state.ghosts[i].frightened = true;
+            for(int32_t i = 0; i < GHOST_COUNT; i++) {
+                if(game_state.ghosts[i].state != GHOST_STATE_EATEN) {
+                    game_state.ghosts[i].frightened = true;
+                }
             }
         }
     }
@@ -418,7 +590,7 @@ void update_loop(float dt, uint32_t input) {
         game_state.ghosts[i].target.sub.y = 0.0f;
 
         TileCoord current = game_state.ghosts[i].entity.coord;
-        if(ghost_can_pass_gate(&game_state.ghosts[i]) && game_state.level->data[current.y][current.x] == TILE_TYPE_GHOST_HOUSE_GATE) {
+        if(ghost_can_pass_gate(&game_state.ghosts[i]) && get_level_tile_data(game_state.level, &current) == TILE_TYPE_GHOST_HOUSE_GATE) {
             game_state.ghosts[i].in_ghost_house = game_state.ghosts[i].state == GHOST_STATE_EATEN;
             game_state.ghosts[i].state = (game_state.mode == GAME_MODE_SCATTER) ?
                 GHOST_STATE_SCATTER : GHOST_STATE_CHASE;
@@ -475,10 +647,26 @@ void update_loop(float dt, uint32_t input) {
                 tilecoord_to_rect(&game_state.ghosts[i].entity.coord, &ghost_rect, 0.35f);
 
                 if(rect_aabb_test(&player_rect, &ghost_rect)) {
-                    reset_game();
+                    //reset_game();
                 }
             }
         }
+    }
+
+    Vector2i abs_pos = get_entity_abs_position(&game_state.player.entity);
+    game_camera.scroll.x = abs_pos.x - (DEFAULT_FRAMEBUFFER_WIDTH / 2);
+    game_camera.scroll.y = abs_pos.y - (DEFAULT_FRAMEBUFFER_HEIGHT / 2);
+
+    if(game_camera.scroll.x < 0) {
+        game_camera.scroll.x = 0;
+    } else if((game_camera.scroll.x + DEFAULT_FRAMEBUFFER_WIDTH) > (TILE_COUNT_X * TILE_SIZE)) {
+        game_camera.scroll.x = TILE_COUNT_X * TILE_SIZE - DEFAULT_FRAMEBUFFER_WIDTH;
+    }
+
+    if(game_camera.scroll.y < 0) {
+        game_camera.scroll.y = 0;
+    } else if((game_camera.scroll.y + DEFAULT_FRAMEBUFFER_HEIGHT) > (TILE_COUNT_Y * TILE_SIZE)) {
+        game_camera.scroll.y = TILE_COUNT_Y * TILE_SIZE - DEFAULT_FRAMEBUFFER_HEIGHT;
     }
 }
 
@@ -713,10 +901,17 @@ void tile_coords_from_direction(TileCoord *coord, MovementDirection direction) {
 }
 
 void render_loop(void) {
+    uint32_t *fb = get_framebuffer();
+    memset(fb, 0, sizeof(fb[0]) * DEFAULT_FRAMEBUFFER_WIDTH * DEFAULT_FRAMEBUFFER_HEIGHT);
+
+    glUniform3f(glGetUniformLocation(game_state.gl_program, "camera"),
+                game_camera.offset.x, game_camera.offset.y, game_camera.zoom);
+
     // Level
     for(int32_t y = 0; y < TILE_COUNT_Y; y++) {
         for(int32_t x = 0; x < TILE_COUNT_X; x++) {
-            uint32_t tile = game_state.level->data[y][x];
+            TileCoord coord = { .x = x, .y = y };
+            uint32_t tile = get_level_tile_data(game_state.level, &coord);
 
 #define ASSIGN_TILE_TYPE(type) case TILE_TYPE_##type: sprite = &atlas_sprites[ATLAS_SPRITE_##type]; break
             const Rect *sprite = NULL;
@@ -730,7 +925,8 @@ void render_loop(void) {
 #undef ASSIGN_TILE_TYPE
 
             if(sprite) {
-                blit_texture(game_state.atlas, x * TILE_SIZE, y * TILE_SIZE, sprite);
+                blit_texture(game_state.atlas, x * TILE_SIZE - game_camera.scroll.x,
+                             y * TILE_SIZE - game_camera.scroll.y, sprite, NULL);
             }
         }
     }
@@ -758,16 +954,42 @@ void render_loop(void) {
             }
         }
 
-        blit_texture(game_state.atlas, rdest.x, rdest.y, &atlas_sprites[atlas_index]);
+        blit_texture(game_state.atlas, rdest.x - game_camera.scroll.x,
+                     rdest.y - game_camera.scroll.y, &atlas_sprites[atlas_index], NULL);
     }
 
     // Player
     float sub = MAX(fabsf(game_state.player.entity.coord.sub.x), fabsf(game_state.player.entity.coord.sub.y));
     tilecoord_to_rect(&game_state.player.entity.coord, &rdest, 1.0f);
-    blit_texture(game_state.atlas, rdest.x, rdest.y,
+
+    int32_t player_x, player_y;
+    if(game_camera.scroll.x <= 0) {
+        player_x = rdest.x;
+    } else if((game_camera.scroll.x + DEFAULT_FRAMEBUFFER_WIDTH) >= (TILE_COUNT_X * TILE_SIZE)) {
+        player_x = DEFAULT_FRAMEBUFFER_WIDTH - (TILE_COUNT_X * TILE_SIZE - rdest.x);
+    } else {
+        player_x = DEFAULT_FRAMEBUFFER_WIDTH / 2;
+    }
+
+    if(game_camera.scroll.y <= 0) {
+        player_y = rdest.y;
+    } else if((game_camera.scroll.y + DEFAULT_FRAMEBUFFER_HEIGHT) >= (TILE_COUNT_Y * TILE_SIZE)) {
+        player_y = DEFAULT_FRAMEBUFFER_HEIGHT - (TILE_COUNT_Y * TILE_SIZE - rdest.y);
+    } else {
+        player_y = DEFAULT_FRAMEBUFFER_HEIGHT / 2;
+    }
+
+    static float r = 0.0f;
+    r += 0.005f;
+    Matrix3x3 transform = get_rotation_mat3(r);
+    float s = sinf(r) + 1.5f;
+    Matrix3x3 scale = get_scaling_mat3(s, s);
+    transform = mat3_mul(&transform, &scale);
+
+    blit_texture(game_state.atlas, player_x, player_y,
                  (sub >= 0.25f && sub < 0.75f) ?
                  &atlas_sprites[ATLAS_SPRITE_PLAYER_F2] :
-                 &atlas_sprites[ATLAS_SPRITE_PLAYER_F1]);
+                 &atlas_sprites[ATLAS_SPRITE_PLAYER_F1], &transform);
 
     // OpenGL stuff
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, DEFAULT_FRAMEBUFFER_WIDTH,
@@ -783,4 +1005,3 @@ void render_loop(void) {
 #undef CHASE_MODE_TIME
 #undef FRIGHTENED_MODE_TIME
 #undef INPUT_QUEUE_TIME_MAX
-#undef MAX
