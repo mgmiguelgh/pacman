@@ -121,22 +121,16 @@ static Matrix3x3 get_inverse_matrix(const Matrix3x3 *mat) {
 
     Matrix3x3 m;
     m.m00 = (mat->m11 * mat->m22 - mat->m12 * mat->m21) * inv_det;
-    m.m01 = (-(mat->m10 * mat->m22 - mat->m12 * mat->m20)) * inv_det;
-    m.m02 = (mat->m10 * mat->m21 - mat->m11 * mat->m20) * inv_det;
+    m.m01 = (-(mat->m01 * mat->m22 - mat->m02 * mat->m21)) * inv_det;
+    m.m02 = (mat->m01 * mat->m12 - mat->m02 * mat->m11) * inv_det;
 
-    m.m10 = (-(mat->m01 * mat->m22 - mat->m02 * mat->m21)) * inv_det;
+    m.m10 = (-(mat->m10 * mat->m22 - mat->m12 * mat->m20)) * inv_det;
     m.m11 = (mat->m00 * mat->m22 - mat->m02 * mat->m20) * inv_det;
-    m.m12 = (-(mat->m00 * mat->m21 - mat->m01 * mat->m20)) * inv_det;
+    m.m12 = (-(mat->m00 * mat->m12 - mat->m02 * mat->m10)) * inv_det;
 
-    m.m20 = (mat->m01 * mat->m12 - mat->m02 * mat->m11) * inv_det;
-    m.m21 = (-(mat->m00 * mat->m12 - mat->m02 * mat->m10)) * inv_det;
+    m.m20 = (mat->m10 * mat->m21 - mat->m11 * mat->m20) * inv_det;
+    m.m21 = (-(mat->m00 * mat->m21 - mat->m01 * mat->m20)) * inv_det;
     m.m22 = (mat->m00 * mat->m11 - mat->m01 * mat->m10) * inv_det;
-
-    // Transpose
-    float t;
-    t = m.m01; m.m01 = m.m10; m.m10 = t;
-    t = m.m02; m.m02 = m.m20; m.m20 = t;
-    t = m.m12; m.m12 = m.m21; m.m21 = t;
 
     return m;
 }

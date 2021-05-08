@@ -25,6 +25,32 @@ void set_pixel(int32_t x, int32_t y, uint32_t color) {
     }
 }
 
+static void simple_forward_blit(const Texture2D *texture, int32_t dx, int32_t dy, const Rect *rect) {
+    assert(texture && rect && in_bounds(rect->x, rect->y, texture->width, texture->height));
+
+    uint32_t bounds = in_bounds(dx, dy, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT);
+    bounds |= in_bounds(dx + rect->width, dy, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT);
+    bounds |= in_bounds(dx, dy + rect->height, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT);
+    bounds |= in_bounds(dx + rect->height, dy + rect->height, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT);
+
+    if(bounds == 0) {
+        return;
+    }
+
+    int32_t sy = rect->y;
+    for(int32_t y0 = 0; y0 < rect->height; y0++, sy++) {
+        int32_t sx = rect->x;
+
+        for(int32_t x0 = 0; x0 < rect->width; x0++, sx++) {
+            uint32_t texture_index = sy * (texture->width * CHANNEL_COUNT) + (sx * CHANNEL_COUNT);
+            uint32_t color;
+            memcpy(&color, &texture->data[texture_index], sizeof(uint32_t));
+
+            set_pixel(dx + x0, dy + y0, color);
+        }
+    }
+}
+
 void blit_texture(const Texture2D *texture, int32_t dx, int32_t dy, const Rect *rect, const Matrix3x3 *transform) {
     if(texture) {
         int32_t x, y;
@@ -47,18 +73,20 @@ void blit_texture(const Texture2D *texture, int32_t dx, int32_t dy, const Rect *
             height = texture->height;
         }
 
+        if(!transform) {
+            Rect r = { .x = x, .y = y, .width = width, .height = height };
+            simple_forward_blit(texture, dx, dy, &r);
+            return;
+        }
+
         Matrix3x3 t;
         Rect bounding_box;
 
-        if(!transform) {
-            transform = &identity_mat;
-        }
-
-        float x_offset = (float)(-x - (width / 2));
-        float y_offset = (float)(-y - (height / 2));
+        float x_offset = (float)(-x - (width >> 1));
+        float y_offset = (float)(-y - (height >> 1));
 
         t = get_translation_mat3(x_offset, y_offset);
-        Matrix3x3 t2 = get_translation_mat3((float)dx, (float)dy);
+        Matrix3x3 t2 = get_translation_mat3((float)(dx + (width >> 1)), (float)(dy + (height >> 1)));
 
         t = mat3_mul(transform, &t);
         t = mat3_mul(&t2, &t);
