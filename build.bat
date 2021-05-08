@@ -1,0 +1,17 @@
+@echo off
+
+IF NOT EXIST bin mkdir bin
+
+SET EXECUTABLE=pacman.exe
+SET DEFINES=/DDEBUG /D_DEBUG /DUNICODE /D_UNICODE /D_CRT_SECURE_NO_WARNINGS
+SET COMPILERFLAGS=/nologo /Od /MTd /Zi /W4 /wd4204 /wd4200 /wd4201 /FC /Fe:%EXECUTABLE%
+SET LINKERFLAGS=/link /INCREMENTAL:NO /SUBSYSTEM:WINDOWS
+SET LIBRARIES=kernel32.lib user32.lib gdi32.lib opengl32.lib
+
+pushd bin
+
+cl %DEFINES% %COMPILERFLAGS% ..\src\win\win_pacman.c %LIBRARIES% %LINKERFLAGS%
+
+copy /b /y %EXECUTABLE% ..\
+
+popd
