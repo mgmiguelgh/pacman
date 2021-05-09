@@ -17,6 +17,8 @@ typedef struct Texture2D {
 
 #define CHROMA_KEY_UNUSED 0xffffffff
 #define CHANNEL_COUNT 4
+#define ABSOLUTE_VAL(v) (((v) >= 0) ? (v) : -(v))
+
 
 Texture2D * load_texture(const char *path, uint32_t chroma_key);
 void destroy_texture(Texture2D **texture);

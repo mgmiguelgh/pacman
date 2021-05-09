@@ -1,3 +1,9 @@
+/*
+ * Pacman Clone
+ *
+ * Copyright (c) 2021 Amanch Esmailzadeh
+ */
+
 #include "level.h"
 
 Level * load_next_level(void) {
@@ -10,7 +16,7 @@ Level * load_next_level(void) {
 }
 
 void unload_level(Level **level) {
-    if(level && *level) {
+    if(level) {
         free(*level);
         *level = NULL;
     }

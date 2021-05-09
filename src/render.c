@@ -6,10 +6,11 @@
 
 #include "render.h"
 #include <float.h>
+#include <stdbool.h>
 
-static uint32_t framebuffer[DEFAULT_FRAMEBUFFER_WIDTH * DEFAULT_FRAMEBUFFER_HEIGHT];
+static Color framebuffer[DEFAULT_FRAMEBUFFER_WIDTH * DEFAULT_FRAMEBUFFER_HEIGHT];
 
-uint32_t * get_framebuffer(void) {
+Color * get_framebuffer(void) {
     return framebuffer;
 }
 
@@ -18,35 +19,44 @@ static inline int in_bounds(int32_t x, int32_t y, int32_t width, int32_t height)
         y >= 0 && y < height;
 }
 
-void set_pixel(int32_t x, int32_t y, uint32_t color) {
-    int has_alpha = (color >> 24) & 0xff;
-    if(has_alpha && in_bounds(x, y, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT)) {
+void set_pixel(int32_t x, int32_t y, Color color) {
+    bool should_render = color.a > 0.0f;
+    if(should_render && in_bounds(x, y, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT)) {
         framebuffer[y * DEFAULT_FRAMEBUFFER_WIDTH + x] = color;
     }
+}
+
+static inline Color convert_to_float_color(uint32_t color) {
+    return (Color) {
+        .r = (float)(color & 0xff) / 255.0f,
+        .g = (float)((color >> 8) & 0xff) / 255.0f,
+        .b = (float)((color >> 16) & 0xff) / 255.0f,
+        .a = (float)((color >> 24) & 0xff) / 255.0f
+    };
 }
 
 static void simple_forward_blit(const Texture2D *texture, int32_t dx, int32_t dy, const Rect *rect) {
     assert(texture && rect && in_bounds(rect->x, rect->y, texture->width, texture->height));
 
-    uint32_t bounds = in_bounds(dx, dy, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT);
-    bounds |= in_bounds(dx + rect->width, dy, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT);
-    bounds |= in_bounds(dx, dy + rect->height, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT);
-    bounds |= in_bounds(dx + rect->height, dy + rect->height, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT);
+    int32_t xstart = MAX(0, dx);
+    int32_t xend = MIN((dx + rect->width), DEFAULT_FRAMEBUFFER_WIDTH);
+    int32_t ystart = MAX(0, dy);
+    int32_t yend = MIN((dy + rect->height), DEFAULT_FRAMEBUFFER_HEIGHT);
 
-    if(bounds == 0) {
-        return;
-    }
+    int32_t sy = rect->y + ((dy < 0) ? ABSOLUTE_VAL(rect->height - yend) : 0);
+    int32_t tex_startx = rect->x + ((dx < 0) ? ABSOLUTE_VAL(rect->width - xend) : 0);
 
-    int32_t sy = rect->y;
-    for(int32_t y0 = 0; y0 < rect->height; y0++, sy++) {
-        int32_t sx = rect->x;
+    for(; ystart < yend; ystart++, sy++) {
+        int32_t sx = tex_startx;
 
-        for(int32_t x0 = 0; x0 < rect->width; x0++, sx++) {
+        for(int32_t x0 = xstart; x0 < xend; x0++, sx++) {
             uint32_t texture_index = sy * (texture->width * CHANNEL_COUNT) + (sx * CHANNEL_COUNT);
-            uint32_t color;
-            memcpy(&color, &texture->data[texture_index], sizeof(uint32_t));
+            uint32_t tex_color;
+            memcpy(&tex_color, &texture->data[texture_index], sizeof(uint32_t));
 
-            set_pixel(dx + x0, dy + y0, color);
+            Color c = convert_to_float_color(tex_color);
+
+            set_pixel(x0, ystart, c);
         }
     }
 }
@@ -55,12 +65,6 @@ void blit_texture(const Texture2D *texture, int32_t dx, int32_t dy, const Rect *
     if(texture) {
         int32_t x, y;
         int32_t width, height;
-
-        static const Matrix3x3 identity_mat = {
-            .m00 = 1.0f, .m01 = 0.0f, .m02 = 0.0f,
-            .m10 = 0.0f, .m11 = 1.0f, .m12 = 0.0f,
-            .m20 = 0.0f, .m21 = 0.0f, .m22 = 1.0f
-        };
 
         if(rect) {
             x = rect->x;
@@ -123,29 +127,34 @@ void blit_texture(const Texture2D *texture, int32_t dx, int32_t dy, const Rect *
         bounds |= in_bounds(bounding_box.width, bounding_box.y, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT);
         bounds |= in_bounds(bounding_box.x, bounding_box.height, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT);
         bounds |= in_bounds(bounding_box.width, bounding_box.height, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT);
-        if(bounds == 0) {
-            return;
-        }
 
-        t = get_inverse_matrix(&t);
+        if(bounds != 0) {
+            t = get_inverse_matrix(&t);
+            transform = &t;
 
-        transform = &t;
+            int32_t xstart = MAX(0, bounding_box.x);
+            int32_t xend = MIN(bounding_box.width, DEFAULT_FRAMEBUFFER_WIDTH);
+            int32_t ystart = MAX(0, bounding_box.y);
+            int32_t yend = MIN(bounding_box.height, DEFAULT_FRAMEBUFFER_HEIGHT);
 
-        Vector3 point = { .z = 1.0f };
-        for(int32_t y0 = bounding_box.y; y0 < bounding_box.height; y0++) {
-            for(int32_t x0 = bounding_box.x; x0 < bounding_box.width; x0++) {
-                point.x = (float)x0 + 0.5f;
-                point.y = (float)y0 + 0.5f;
+            Vector3 point = { .z = 1.0f };
+            for(int32_t y0 = ystart; y0 < yend; y0++) {
+                for(int32_t x0 = xstart; x0 < xend; x0++) {
+                    point.x = (float)x0 + 0.5f;
+                    point.y = (float)y0 + 0.5f;
 
-                point = mat3_vec3_mul(transform, &point);
+                    point = mat3_vec3_mul(transform, &point);
 
-                int32_t px = (int32_t)point.x, py = (int32_t)point.y;
-                if(px >= x && px < (x + width) && py >= y && py < (y + height)) {
-                    uint32_t texture_index = py * (texture->width * CHANNEL_COUNT) + (px * CHANNEL_COUNT);
-                    uint32_t color;
-                    memcpy(&color, &texture->data[texture_index], sizeof(uint32_t));
+                    int32_t px = (int32_t)point.x, py = (int32_t)point.y;
+                    if(px >= x && px < (x + width) && py >= y && py < (y + height)) {
+                        uint32_t texture_index = py * (texture->width * CHANNEL_COUNT) + (px * CHANNEL_COUNT);
+                        uint32_t tex_color;
+                        memcpy(&tex_color, &texture->data[texture_index], sizeof(uint32_t));
 
-                    set_pixel(x0, y0, color);
+                        Color c = convert_to_float_color(tex_color);
+
+                        set_pixel(x0, y0, c);
+                    }
                 }
             }
         }

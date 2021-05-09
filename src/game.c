@@ -57,41 +57,6 @@ static const Rect atlas_sprites[ATLAS_SPRITE_COUNT] = {
     [ATLAS_SPRITE_GHOST_HOUSE_GATE] = { .x = 160, .y = 32, .width = TILE_SIZE, .height = TILE_SIZE },
 };
 
-#if 1
-static Level test_level1 = {
-    .rows = (DEFAULT_FRAMEBUFFER_WIDTH / TILE_SIZE) + 8,
-    .columns = (DEFAULT_FRAMEBUFFER_HEIGHT / TILE_SIZE) + 8,
-    .data = {
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
-        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 5, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 4, 4, 4, 4, 5, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
-        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 4, 1, 1, 4, 1, 1, 1, 4, 1, 4, 1, 1, 1, 4, 1, 1, 4, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
-        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
-        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 4, 1, 1, 4, 1, 4, 1, 1, 1, 1, 1, 4, 1, 4, 1, 1, 4, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
-        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 4, 4, 4, 4, 1, 4, 4, 4, 1, 4, 4, 4, 1, 4, 4, 4, 4, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 1, 1, 4, 1, 4, 1, 1, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 0, 0, 0, 8, 0, 0, 0, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 1, 1, 3, 1, 1, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 0, 1, 0, 0, 0, 1, 0, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 0, 1, 11, 9, 10, 1, 0, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 4, 4, 4, 4, 1, 0, 1, 1, 1, 1, 1, 0, 1, 4, 4, 4, 4, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
-        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 4, 1, 1, 4, 4, 0, 0, 0, 2, 0, 0, 0, 4, 4, 1, 1, 4, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
-        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 4, 1, 1, 4, 1, 4, 1, 1, 1, 1, 1, 4, 1, 4, 1, 1, 4, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
-        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 4, 4, 4, 4, 1, 4, 4, 4, 1, 4, 4, 4, 1, 4, 4, 4, 4, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
-        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 4, 1, 1, 1, 1, 1, 1, 4, 1, 4, 1, 1, 1, 1, 1, 1, 4, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
-        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
-        1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-    }
-};
-#endif
-
 static const Vector2 direction_vectors[4] = {
     { .x = 0.0f, .y = -1.0f }, // Up
     { .x = -1.0f, .y = 0.0f }, // Left
@@ -417,8 +382,8 @@ static void initialize_opengl(void) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT,
-                 0, GL_RGBA, GL_UNSIGNED_BYTE, get_framebuffer());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT,
+                 0, GL_RGBA, GL_FLOAT, get_framebuffer());
 
     float aspect_ratio = (float)DEFAULT_FRAMEBUFFER_WIDTH / (float)DEFAULT_FRAMEBUFFER_HEIGHT;
     float w = DEFAULT_WINDOW_WIDTH;
@@ -901,8 +866,8 @@ void tile_coords_from_direction(TileCoord *coord, MovementDirection direction) {
 }
 
 void render_loop(void) {
-    uint32_t *fb = get_framebuffer();
-    memset(fb, 0, sizeof(fb[0]) * DEFAULT_FRAMEBUFFER_WIDTH * DEFAULT_FRAMEBUFFER_HEIGHT);
+    Color *fb = get_framebuffer();
+    memset(fb, 0, sizeof(*fb) * DEFAULT_FRAMEBUFFER_WIDTH * DEFAULT_FRAMEBUFFER_HEIGHT);
 
     glUniform3f(glGetUniformLocation(game_state.gl_program, "camera"),
                 game_camera.offset.x, game_camera.offset.y, game_camera.zoom);
@@ -993,7 +958,7 @@ void render_loop(void) {
 
     // OpenGL stuff
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, DEFAULT_FRAMEBUFFER_WIDTH,
-                    DEFAULT_FRAMEBUFFER_HEIGHT, GL_RGBA, GL_UNSIGNED_BYTE, get_framebuffer());
+                    DEFAULT_FRAMEBUFFER_HEIGHT, GL_RGBA, GL_FLOAT, get_framebuffer());
     glClear(GL_COLOR_BUFFER_BIT);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 }

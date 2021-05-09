@@ -50,6 +50,10 @@ typedef struct {
     int32_t y;
 } Vector2i;
 
+typedef struct {
+    float r, g, b, a;
+} Color;
+
 static inline Vector3 mat3_vec3_mul(const Matrix3x3 *mat, const Vector3 *vec) {
     assert(mat && vec);
     return (Vector3) {
@@ -135,8 +139,8 @@ static Matrix3x3 get_inverse_matrix(const Matrix3x3 *mat) {
     return m;
 }
 
-uint32_t * get_framebuffer(void);
-void set_pixel(int32_t x, int32_t y, uint32_t color);
+Color * get_framebuffer(void);
+void set_pixel(int32_t x, int32_t y, Color color);
 void blit_texture(const Texture2D *texture, int32_t dx, int32_t dy, const Rect *rect, const Matrix3x3 *transform);
 
 #endif /* RENDER_H */

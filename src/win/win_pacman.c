@@ -162,7 +162,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev, LPSTR args, int cmd_show)
 
 #ifdef CREATE_BORDERLESS_WINDOW
     // Need to do this here for some reason. This makes sure it doesn't open up in exclusive fullscreen mode
-    SetWindowLong(window, GWL_STYLE, WS_POPUP | WS_MINIMIZEBOX);
+    SetWindowLong(window, GWL_STYLE, WS_POPUP);
     ShowWindow(window, SW_SHOW);
 #endif
 

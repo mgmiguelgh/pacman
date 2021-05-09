@@ -1,3 +1,9 @@
+/*
+ * Pacman Clone
+ *
+ * Copyright (c) 2021 Amanch Esmailzadeh
+ */
+
 #ifndef LEVEL_H
 #define LEVEL_H
 

@@ -34,8 +34,6 @@ typedef struct {
 } BitmapFile;
 #pragma pack(pop)
 
-#define ABSOLUTE_VAL(v) ((v >= 0) ? v : -v)
-
 static inline uint32_t get_y_bottom_up(uint32_t y, uint32_t height) { return height - 1 - y; }
 static inline uint32_t get_y_top_down(uint32_t y, uint32_t height) { IGNORED_VARIABLE(height); return y; }
 
@@ -139,7 +137,7 @@ Texture2D * load_texture(const char *path, uint32_t chroma_key) {
 }
 
 void destroy_texture(Texture2D **texture) {
-    if(texture && *texture) {
+    if(texture) {
         free(*texture);
         *texture = NULL;
     }
