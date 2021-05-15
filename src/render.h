@@ -20,6 +20,7 @@
 
 #define MIN(a, b) (((a) <= (b)) ? (a) : (b))
 #define MAX(a, b) (((a) >= (b)) ? (a) : (b))
+#define CLAMP(v, m0, m1) MAX((m0), MIN((v), (m1)))
 
 typedef struct {
     int32_t x;
@@ -140,7 +141,9 @@ static Matrix3x3 get_inverse_matrix(const Matrix3x3 *mat) {
 }
 
 Color * get_framebuffer(void);
-void set_pixel(int32_t x, int32_t y, Color color);
 void blit_texture(const Texture2D *texture, int32_t dx, int32_t dy, const Rect *rect, const Matrix3x3 *transform);
+void draw_spotlight(int32_t dx, int32_t dy, uint32_t radius);
+void clear_spotlights(void);
+void submit_spotlights(void);
 
 #endif /* RENDER_H */

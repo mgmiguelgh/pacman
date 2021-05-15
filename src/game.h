@@ -75,10 +75,10 @@ typedef struct {
 } GhostEntity;
 
 enum {
-    RED_GHOST,
-    PINK_GHOST,
-    ORANGE_GHOST,
-    CYAN_GHOST,
+    GHOST_BLINKY,
+    GHOST_PINKY,
+    GHOST_CLYDE,
+    GHOST_INKY,
 
     GHOST_COUNT
 };

@@ -9,6 +9,7 @@
 #include <stdbool.h>
 
 static Color framebuffer[DEFAULT_FRAMEBUFFER_WIDTH * DEFAULT_FRAMEBUFFER_HEIGHT];
+static float light_buffer[DEFAULT_FRAMEBUFFER_WIDTH * DEFAULT_FRAMEBUFFER_HEIGHT];
 
 Color * get_framebuffer(void) {
     return framebuffer;
@@ -19,10 +20,19 @@ static inline int in_bounds(int32_t x, int32_t y, int32_t width, int32_t height)
         y >= 0 && y < height;
 }
 
-void set_pixel(int32_t x, int32_t y, Color color) {
+static inline void set_pixel(int32_t x, int32_t y, Color color) {
     bool should_render = color.a > 0.0f;
     if(should_render && in_bounds(x, y, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT)) {
         framebuffer[y * DEFAULT_FRAMEBUFFER_WIDTH + x] = color;
+    }
+}
+
+static inline void add_light(int32_t x, int32_t y, float intensity) {
+    if(intensity > 0.0f && in_bounds(x, y, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT)) {
+        float level = light_buffer[y * DEFAULT_FRAMEBUFFER_WIDTH + x];
+        level += intensity;
+        level = CLAMP(level, 0.0f, 1.0f);
+        light_buffer[y * DEFAULT_FRAMEBUFFER_WIDTH + x] = level;
     }
 }
 
@@ -31,7 +41,7 @@ static inline Color convert_to_float_color(uint32_t color) {
         .r = (float)(color & 0xff) / 255.0f,
         .g = (float)((color >> 8) & 0xff) / 255.0f,
         .b = (float)((color >> 16) & 0xff) / 255.0f,
-        .a = (float)((color >> 24) & 0xff) / 255.0f
+        .a = (float)(!!((color >> 24) & 0xff))
     };
 }
 
@@ -157,6 +167,60 @@ void blit_texture(const Texture2D *texture, int32_t dx, int32_t dy, const Rect *
                     }
                 }
             }
+        }
+    }
+}
+
+void draw_spotlight(int32_t dx, int32_t dy, uint32_t radius) {
+    assert(radius > 0);
+
+    int32_t start_x = dx - radius;
+    int32_t start_y = dy - radius;
+    int32_t end_x = dx + radius;
+    int32_t end_y = dy + radius;
+
+    int32_t r2 = radius * radius;
+
+    float r_inv = 1.0f / (float)radius;
+
+    for(int32_t y = start_y; y < end_y; y++) {
+        int32_t dist_y = y - dy;
+        float y0 = (float)dist_y;
+
+        for(int32_t x = start_x; x < end_x; x++) {
+            int32_t dist_x = x - dx;
+            float x0 = (float)dist_x;
+
+            float n = 1.0f - (sqrtf(x0 * x0 + y0 * y0) * r_inv);
+
+            if((dist_x * dist_x + dist_y * dist_y) < r2) {
+                add_light(x, y, n);
+            }
+        }
+    }
+}
+
+void clear_spotlights(void) {
+    memset(light_buffer, 0, sizeof(light_buffer));
+}
+
+void submit_spotlights(void) {
+    static const float dither_map[2][2] = {
+        { 0.25f, 0.5f },
+        { 0.75f, 0.0f }
+    };
+
+    for(int32_t y = 0; y < DEFAULT_FRAMEBUFFER_HEIGHT; y++) {
+        for(int32_t x = 0; x < DEFAULT_FRAMEBUFFER_WIDTH; x++) {
+            Color *pixel = &framebuffer[y * DEFAULT_FRAMEBUFFER_WIDTH + x];
+
+            float intensity = light_buffer[y * DEFAULT_FRAMEBUFFER_WIDTH + x];
+            intensity = (intensity > dither_map[y%2][x%2]) ? 1.0f : 0.35f;
+
+            pixel->r = CLAMP((pixel->r * intensity), 0.0f, 1.0f);
+            pixel->g = CLAMP((pixel->g * intensity), 0.0f, 1.0f);
+            pixel->b = CLAMP((pixel->b * intensity), 0.0f, 1.0f);
+            pixel->a = CLAMP((pixel->a * intensity), 0.0f, 1.0f);
         }
     }
 }

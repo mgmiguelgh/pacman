@@ -24,39 +24,6 @@
 #define FRIGHTENED_MODE_TIME 10.0f
 #define INPUT_QUEUE_TIME_MAX 1.0f
 
-static const Rect atlas_sprites[ATLAS_SPRITE_COUNT] = {
-    [ATLAS_SPRITE_PLAYER_F1] = { .x = 128, .y = 0, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_PLAYER_F2] = { .x = 160, .y = 0, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_WALL] = { .x = 192, .y = 0, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_PELLET] = { .x = 224, .y = 0, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_POWER_PELLET] = { .x = 256, .y = 0, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_CYAN_GHOST_UP] = { .x = 0, .y = 32, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_CYAN_GHOST_LEFT] = { .x = 32, .y = 0, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_CYAN_GHOST_DOWN] = { .x = 0, .y = 0, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_CYAN_GHOST_RIGHT] = { .x = 32, .y = 32, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_CYAN_GHOST_FRIGHTENED] = { .x = 0, .y = 128, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_PINK_GHOST_UP] = { .x = 64, .y = 32, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_PINK_GHOST_LEFT] = { .x = 96, .y = 0, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_PINK_GHOST_DOWN] = { .x = 64, .y = 0, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_PINK_GHOST_RIGHT] = { .x = 96, .y = 32, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_PINK_GHOST_FRIGHTENED] = { .x = 32, .y = 128, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_RED_GHOST_UP] = { .x = 0, .y = 96, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_RED_GHOST_LEFT] = { .x = 32, .y = 64, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_RED_GHOST_DOWN] = { .x = 0, .y = 64, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_RED_GHOST_RIGHT] = { .x = 32, .y = 64, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_RED_GHOST_FRIGHTENED] = { .x = 0, .y = 160, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_ORANGE_GHOST_UP] = { .x = 64, .y = 96, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_ORANGE_GHOST_LEFT] = { .x = 96, .y = 64, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_ORANGE_GHOST_DOWN] = { .x = 64, .y = 64, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_ORANGE_GHOST_RIGHT] = { .x = 96, .y = 96, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_ORANGE_GHOST_FRIGHTENED] = { .x = 32, .y = 160, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_GHOST_EATEN_UP] = { .x = 64, .y = 160, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_GHOST_EATEN_LEFT] = { .x = 96, .y = 128, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_GHOST_EATEN_DOWN] = { .x = 64, .y = 128, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_GHOST_EATEN_RIGHT] = { .x = 96, .y = 160, .width = TILE_SIZE, .height = TILE_SIZE },
-    [ATLAS_SPRITE_GHOST_HOUSE_GATE] = { .x = 160, .y = 32, .width = TILE_SIZE, .height = TILE_SIZE },
-};
-
 static const Vector2 direction_vectors[4] = {
     { .x = 0.0f, .y = -1.0f }, // Up
     { .x = -1.0f, .y = 0.0f }, // Left
@@ -143,10 +110,10 @@ static bool tile_is_wall(const TileCoord *coord, GhostEntity *ghost) {
 
         if(ghost_can_pass_gate(ghost)) {
             ghost->target = game_state.level->gate_tile;
-            return type == TILE_TYPE_WALL;
+            return type == ATLAS_SPRITE_WALL_NORMAL || type == ATLAS_SPRITE_WALL_BOTTOM;
         }
 
-        return type == TILE_TYPE_WALL || type == TILE_TYPE_GHOST_HOUSE_GATE;
+        return type == ATLAS_SPRITE_WALL_NORMAL || type == ATLAS_SPRITE_WALL_BOTTOM || type == ATLAS_SPRITE_GHOST_HOUSE_GATE;
     }
 
     return false;
@@ -175,7 +142,7 @@ static void tile_coords_from_direction(TileCoord *coord, MovementDirection direc
 
 static void reset_game(void) {
     if(!game_state.atlas) {
-        game_state.atlas = load_texture("data/texture_atlas2x.bmp", 0xff00ff);
+        game_state.atlas = load_texture("data/texture_atlas.bmp", 0xff00ff);
     }
     memset(&game_state.player, 0, sizeof(game_state.player));
     memset(&game_state.ghosts, 0, sizeof(game_state.ghosts));
@@ -201,38 +168,55 @@ static void reset_game(void) {
                 continue;
             }
 
-            TileType type = *tile;
-            switch(type) {
-                case TILE_TYPE_GHOST_HOUSE_GATE:
+            AtlasSprite sprite_id = *tile;
+            switch(sprite_id) {
+                case ATLAS_SPRITE_GHOST_HOUSE_GATE:
                     game_state.level->gate_tile.x = x;
                     game_state.level->gate_tile.y = y;
                     break;
-                case TILE_TYPE_STARTING_POSITION:
+                case ATLAS_SPRITE_PLAYER_FRAME1:
+                case ATLAS_SPRITE_PLAYER_FRAME2:
                     game_state.player.entity.coord.x = x;
                     game_state.player.entity.coord.y = y;
+                    *tile = ATLAS_SPRITE_EMPTY;
                     break;
-                case TILE_TYPE_RED_GHOST_START:
-                    game_state.ghosts[RED_GHOST].entity.coord.x = x;
-                    game_state.ghosts[RED_GHOST].entity.coord.y = y;
+                case ATLAS_SPRITE_BLINKY_FRAME1:
+                case ATLAS_SPRITE_BLINKY_FRAME2:
+                case ATLAS_SPRITE_BLINKY_FRIGHTENED_FRAME1:
+                case ATLAS_SPRITE_BLINKY_FRIGHTENED_FRAME2:
+                    game_state.ghosts[GHOST_BLINKY].entity.coord.x = x;
+                    game_state.ghosts[GHOST_BLINKY].entity.coord.y = y;
+                    *tile = ATLAS_SPRITE_EMPTY;
                     break;
-                case TILE_TYPE_PINK_GHOST_START:
-                    game_state.ghosts[PINK_GHOST].entity.coord.x = x;
-                    game_state.ghosts[PINK_GHOST].entity.coord.y = y;
+                case ATLAS_SPRITE_PINKY_FRAME1:
+                case ATLAS_SPRITE_PINKY_FRAME2:
+                case ATLAS_SPRITE_PINKY_FRIGHTENED_FRAME1:
+                case ATLAS_SPRITE_PINKY_FRIGHTENED_FRAME2:
+                    game_state.ghosts[GHOST_PINKY].entity.coord.x = x;
+                    game_state.ghosts[GHOST_PINKY].entity.coord.y = y;
+                    *tile = ATLAS_SPRITE_EMPTY;
                     break;
-                case TILE_TYPE_ORANGE_GHOST_START:
-                    game_state.ghosts[ORANGE_GHOST].entity.coord.x = x;
-                    game_state.ghosts[ORANGE_GHOST].entity.coord.y = y;
+                case ATLAS_SPRITE_CLYDE_FRAME1:
+                case ATLAS_SPRITE_CLYDE_FRAME2:
+                case ATLAS_SPRITE_CLYDE_FRIGHTENED_FRAME1:
+                case ATLAS_SPRITE_CLYDE_FRIGHTENED_FRAME2:
+                    game_state.ghosts[GHOST_CLYDE].entity.coord.x = x;
+                    game_state.ghosts[GHOST_CLYDE].entity.coord.y = y;
+                    *tile = ATLAS_SPRITE_EMPTY;
                     break;
-                case TILE_TYPE_CYAN_GHOST_START:
-                    game_state.ghosts[CYAN_GHOST].entity.coord.x = x;
-                    game_state.ghosts[CYAN_GHOST].entity.coord.y = y;
+                case ATLAS_SPRITE_INKY_FRAME1:
+                case ATLAS_SPRITE_INKY_FRAME2:
+                case ATLAS_SPRITE_INKY_FRIGHTENED_FRAME1:
+                case ATLAS_SPRITE_INKY_FRIGHTENED_FRAME2:
+                    game_state.ghosts[GHOST_INKY].entity.coord.x = x;
+                    game_state.ghosts[GHOST_INKY].entity.coord.y = y;
+                    *tile = ATLAS_SPRITE_EMPTY;
                     break;
                 default:
                     break;
             }
 
-            if(type == TILE_TYPE_PELLET ||
-               type == TILE_TYPE_POWER_PELLET) {
+            if(sprite_id == ATLAS_SPRITE_PELLET || sprite_id == ATLAS_SPRITE_POWER_PELLET) {
                 game_state.level->pellet_count++;
             }
         }
@@ -252,21 +236,21 @@ static void reset_game(void) {
         game_state.ghosts[i].in_ghost_house = true;
     }
 
-    game_state.ghosts[RED_GHOST].entity.dir = MOVEMENT_DIR_RIGHT;
-    game_state.ghosts[RED_GHOST].gate_pass_percentage = 0.0f;
-    game_state.ghosts[RED_GHOST].in_ghost_house = false;
-    game_state.ghosts[PINK_GHOST].gate_pass_percentage = 0.15f;
-    game_state.ghosts[ORANGE_GHOST].gate_pass_percentage = 0.5f;
-    game_state.ghosts[CYAN_GHOST].gate_pass_percentage = 0.3f;
+    game_state.ghosts[GHOST_BLINKY].entity.dir = MOVEMENT_DIR_RIGHT;
+    game_state.ghosts[GHOST_BLINKY].gate_pass_percentage = 0.0f;
+    game_state.ghosts[GHOST_BLINKY].in_ghost_house = false;
+    game_state.ghosts[GHOST_PINKY].gate_pass_percentage = 0.15f;
+    game_state.ghosts[GHOST_CLYDE].gate_pass_percentage = 0.5f;
+    game_state.ghosts[GHOST_INKY].gate_pass_percentage = 0.3f;
 
-    game_state.ghosts[RED_GHOST].entity.default_speed = DEFAULT_MOVEMENT_SPEED - 0.25f;
-    game_state.ghosts[RED_GHOST].entity.speed = game_state.ghosts[RED_GHOST].entity.default_speed;
-    game_state.ghosts[PINK_GHOST].entity.default_speed = DEFAULT_MOVEMENT_SPEED - 0.5f;
-    game_state.ghosts[PINK_GHOST].entity.speed = game_state.ghosts[PINK_GHOST].entity.default_speed;
-    game_state.ghosts[ORANGE_GHOST].entity.default_speed = DEFAULT_MOVEMENT_SPEED - 1.0f;
-    game_state.ghosts[ORANGE_GHOST].entity.speed = game_state.ghosts[ORANGE_GHOST].entity.default_speed;
-    game_state.ghosts[CYAN_GHOST].entity.default_speed = DEFAULT_MOVEMENT_SPEED - 0.75f;
-    game_state.ghosts[CYAN_GHOST].entity.speed = game_state.ghosts[CYAN_GHOST].entity.default_speed;
+    game_state.ghosts[GHOST_BLINKY].entity.default_speed = DEFAULT_MOVEMENT_SPEED - 0.25f;
+    game_state.ghosts[GHOST_BLINKY].entity.speed = game_state.ghosts[GHOST_BLINKY].entity.default_speed;
+    game_state.ghosts[GHOST_PINKY].entity.default_speed = DEFAULT_MOVEMENT_SPEED - 0.5f;
+    game_state.ghosts[GHOST_PINKY].entity.speed = game_state.ghosts[GHOST_PINKY].entity.default_speed;
+    game_state.ghosts[GHOST_CLYDE].entity.default_speed = DEFAULT_MOVEMENT_SPEED - 1.0f;
+    game_state.ghosts[GHOST_CLYDE].entity.speed = game_state.ghosts[GHOST_CLYDE].entity.default_speed;
+    game_state.ghosts[GHOST_INKY].entity.default_speed = DEFAULT_MOVEMENT_SPEED - 0.75f;
+    game_state.ghosts[GHOST_INKY].entity.speed = game_state.ghosts[GHOST_INKY].entity.default_speed;
 
     game_camera.scroll.x = 0;
     game_camera.scroll.y = 0;
@@ -520,12 +504,12 @@ void update_loop(float dt, uint32_t input) {
     uint32_t *player_tile = get_level_tile(game_state.level, game_state.player.entity.coord.x,
                                            game_state.player.entity.coord.y);
     if(player_tile) {
-        if(*player_tile == TILE_TYPE_PELLET) {
+        if(*player_tile == ATLAS_SPRITE_PELLET) {
             game_state.level->pellets_eaten++;
-            *player_tile = TILE_TYPE_EMPTY;
-        } else if(*player_tile == TILE_TYPE_POWER_PELLET) {
+            *player_tile = ATLAS_SPRITE_EMPTY;
+        } else if(*player_tile == ATLAS_SPRITE_POWER_PELLET) {
             game_state.level->pellets_eaten++;
-            *player_tile = TILE_TYPE_EMPTY;
+            *player_tile = ATLAS_SPRITE_EMPTY;
 
             game_state.frightened_timer.running = true;
             game_state.frightened_timer.elapsed = 0.0f;
@@ -555,7 +539,8 @@ void update_loop(float dt, uint32_t input) {
         game_state.ghosts[i].target.sub.y = 0.0f;
 
         TileCoord current = game_state.ghosts[i].entity.coord;
-        if(ghost_can_pass_gate(&game_state.ghosts[i]) && get_level_tile_data(game_state.level, &current) == TILE_TYPE_GHOST_HOUSE_GATE) {
+        if(ghost_can_pass_gate(&game_state.ghosts[i]) &&
+           get_level_tile_data(game_state.level, &current) == ATLAS_SPRITE_GHOST_HOUSE_GATE) {
             game_state.ghosts[i].in_ghost_house = game_state.ghosts[i].state == GHOST_STATE_EATEN;
             game_state.ghosts[i].state = (game_state.mode == GAME_MODE_SCATTER) ?
                 GHOST_STATE_SCATTER : GHOST_STATE_CHASE;
@@ -707,16 +692,16 @@ static void set_ghost_chase_behavior(GhostEntity *ghost, uint32_t type) {
     assert(ghost);
 
     switch(type) {
-        case RED_GHOST:
+        case GHOST_BLINKY:
             ghost->target = game_state.player.entity.coord;
             break;
-        case PINK_GHOST:
+        case GHOST_PINKY:
             ghost->target.x = game_state.player.entity.coord.x +
                 ((int32_t)direction_vectors[game_state.player.entity.dir].x * 4);
             ghost->target.y = game_state.player.entity.coord.y +
                 ((int32_t)direction_vectors[game_state.player.entity.dir].y * 4);
             break;
-        case ORANGE_GHOST: {
+        case GHOST_CLYDE: {
             int32_t dist_x = game_state.player.entity.coord.x - ghost->entity.coord.x;
             int32_t dist_y = game_state.player.entity.coord.y - ghost->entity.coord.y;
 
@@ -729,14 +714,14 @@ static void set_ghost_chase_behavior(GhostEntity *ghost, uint32_t type) {
 
             break;
         }
-        case CYAN_GHOST:
+        case GHOST_INKY:
             ghost->target.x = game_state.player.entity.coord.x +
                 ((int32_t)direction_vectors[game_state.player.entity.dir].x * 2);
             ghost->target.y = game_state.player.entity.coord.y +
                 ((int32_t)direction_vectors[game_state.player.entity.dir].y * 2);
 
-            ghost->target.x += (ghost->target.x - game_state.ghosts[RED_GHOST].entity.coord.x);
-            ghost->target.y += (ghost->target.y - game_state.ghosts[RED_GHOST].entity.coord.y);
+            ghost->target.x += (ghost->target.x - game_state.ghosts[GHOST_BLINKY].entity.coord.x);
+            ghost->target.y += (ghost->target.y - game_state.ghosts[GHOST_BLINKY].entity.coord.y);
 
             break;
         default:
@@ -748,19 +733,19 @@ static void set_ghost_default_behavior(GhostEntity *ghost, uint32_t type) {
     assert(ghost);
 
     switch(type) {
-        case RED_GHOST:
+        case GHOST_BLINKY:
             ghost->target.x = LAST_TILE_X - 8;
             ghost->target.y = -1;
             break;
-        case PINK_GHOST:
+        case GHOST_PINKY:
             ghost->target.x = 8;
             ghost->target.y = -1;
             break;
-        case ORANGE_GHOST:
+        case GHOST_CLYDE:
             ghost->target.x = 8;
             ghost->target.y = TILE_COUNT_Y;
             break;
-        case CYAN_GHOST:
+        case GHOST_INKY:
             ghost->target.x = LAST_TILE_X - 8;
             ghost->target.y = TILE_COUNT_Y;
             break;
@@ -865,6 +850,13 @@ void tile_coords_from_direction(TileCoord *coord, MovementDirection direction) {
     }
 }
 
+static inline AtlasSprite get_entity_frame(GameEntity *entity, AtlasSprite frame1, AtlasSprite frame2) {
+    assert(entity);
+
+    float sub = MAX(fabsf(entity->coord.sub.x), fabsf(entity->coord.sub.y));
+    return (sub < 0.25f || sub >= 0.75f) ? frame1 : frame2;
+}
+
 void render_loop(void) {
     Color *fb = get_framebuffer();
     memset(fb, 0, sizeof(*fb) * DEFAULT_FRAMEBUFFER_WIDTH * DEFAULT_FRAMEBUFFER_HEIGHT);
@@ -872,27 +864,15 @@ void render_loop(void) {
     glUniform3f(glGetUniformLocation(game_state.gl_program, "camera"),
                 game_camera.offset.x, game_camera.offset.y, game_camera.zoom);
 
+    Rect sprite_rect = { 0 };
+
     // Level
     for(int32_t y = 0; y < TILE_COUNT_Y; y++) {
         for(int32_t x = 0; x < TILE_COUNT_X; x++) {
             TileCoord coord = { .x = x, .y = y };
-            uint32_t tile = get_level_tile_data(game_state.level, &coord);
-
-#define ASSIGN_TILE_TYPE(type) case TILE_TYPE_##type: sprite = &atlas_sprites[ATLAS_SPRITE_##type]; break
-            const Rect *sprite = NULL;
-            switch(tile) {
-                ASSIGN_TILE_TYPE(WALL);
-                ASSIGN_TILE_TYPE(PELLET);
-                ASSIGN_TILE_TYPE(POWER_PELLET);
-                ASSIGN_TILE_TYPE(GHOST_HOUSE_GATE);
-                default: break;
-            }
-#undef ASSIGN_TILE_TYPE
-
-            if(sprite) {
-                blit_texture(game_state.atlas, x * TILE_SIZE - game_camera.scroll.x,
-                             y * TILE_SIZE - game_camera.scroll.y, sprite, NULL);
-            }
+            get_atlas_sprite(get_level_tile_data(game_state.level, &coord), &sprite_rect);
+            blit_texture(game_state.atlas, x * TILE_SIZE - game_camera.scroll.x,
+                         y * TILE_SIZE - game_camera.scroll.y, &sprite_rect, NULL);
         }
     }
 
@@ -900,31 +880,37 @@ void render_loop(void) {
     // Ghosts
     for(int32_t i = 0; i < GHOST_COUNT; i++) {
         tilecoord_to_rect(&game_state.ghosts[i].entity.coord, &rdest, 1.0f);
-        int32_t atlas_index = 0;
+
+#define SELECT_GHOST_SPRITE(ghost_name, f1, f2) \
+        case GHOST_##ghost_name: \
+            get_atlas_sprite(get_entity_frame(&game_state.ghosts[GHOST_##ghost_name].entity, f1, f2), &sprite_rect); \
+            break;
+
         if(game_state.ghosts[i].frightened) {
             switch(i) {
-                case RED_GHOST: atlas_index = ATLAS_SPRITE_RED_GHOST_FRIGHTENED; break;
-                case PINK_GHOST: atlas_index = ATLAS_SPRITE_PINK_GHOST_FRIGHTENED; break;
-                case ORANGE_GHOST: atlas_index = ATLAS_SPRITE_ORANGE_GHOST_FRIGHTENED; break;
-                case CYAN_GHOST: atlas_index = ATLAS_SPRITE_CYAN_GHOST_FRIGHTENED; break;
+                SELECT_GHOST_SPRITE(BLINKY, ATLAS_SPRITE_BLINKY_FRIGHTENED_FRAME1, ATLAS_SPRITE_BLINKY_FRIGHTENED_FRAME2);
+                SELECT_GHOST_SPRITE(PINKY, ATLAS_SPRITE_PINKY_FRIGHTENED_FRAME1, ATLAS_SPRITE_PINKY_FRIGHTENED_FRAME2);
+                SELECT_GHOST_SPRITE(CLYDE, ATLAS_SPRITE_CLYDE_FRIGHTENED_FRAME1, ATLAS_SPRITE_CLYDE_FRIGHTENED_FRAME2);
+                SELECT_GHOST_SPRITE(INKY, ATLAS_SPRITE_INKY_FRIGHTENED_FRAME1, ATLAS_SPRITE_INKY_FRIGHTENED_FRAME2);
             }
         } else if(game_state.ghosts[i].state == GHOST_STATE_EATEN) {
-            atlas_index = ATLAS_SPRITE_GHOST_EATEN_UP + game_state.ghosts[i].entity.dir;
+            get_atlas_sprite(ATLAS_SPRITE_GHOST_EATEN_UP + game_state.ghosts[i].entity.dir, &sprite_rect);
         } else {
             switch(i) {
-                case RED_GHOST: atlas_index = ATLAS_SPRITE_RED_GHOST_UP + game_state.ghosts[i].entity.dir; break;
-                case PINK_GHOST: atlas_index = ATLAS_SPRITE_PINK_GHOST_UP + game_state.ghosts[i].entity.dir; break;
-                case ORANGE_GHOST: atlas_index = ATLAS_SPRITE_ORANGE_GHOST_UP + game_state.ghosts[i].entity.dir; break;
-                case CYAN_GHOST: atlas_index = ATLAS_SPRITE_CYAN_GHOST_UP + game_state.ghosts[i].entity.dir; break;
+                SELECT_GHOST_SPRITE(BLINKY, ATLAS_SPRITE_BLINKY_FRAME1, ATLAS_SPRITE_BLINKY_FRAME2);
+                SELECT_GHOST_SPRITE(PINKY, ATLAS_SPRITE_PINKY_FRAME1, ATLAS_SPRITE_PINKY_FRAME2);
+                SELECT_GHOST_SPRITE(CLYDE, ATLAS_SPRITE_CLYDE_FRAME1, ATLAS_SPRITE_CLYDE_FRAME2);
+                SELECT_GHOST_SPRITE(INKY, ATLAS_SPRITE_INKY_FRAME1, ATLAS_SPRITE_INKY_FRAME2);
             }
         }
 
+#undef SELECT_GHOST_SPRITE
+
         blit_texture(game_state.atlas, rdest.x - game_camera.scroll.x,
-                     rdest.y - game_camera.scroll.y, &atlas_sprites[atlas_index], NULL);
+                     rdest.y - game_camera.scroll.y, &sprite_rect, NULL);
     }
 
     // Player
-    float sub = MAX(fabsf(game_state.player.entity.coord.sub.x), fabsf(game_state.player.entity.coord.sub.y));
     tilecoord_to_rect(&game_state.player.entity.coord, &rdest, 1.0f);
 
     int32_t player_x, player_y;
@@ -951,10 +937,13 @@ void render_loop(void) {
     Matrix3x3 scale = get_scaling_mat3(s, s);
     transform = mat3_mul(&transform, &scale);
 
-    blit_texture(game_state.atlas, player_x, player_y,
-                 (sub >= 0.25f && sub < 0.75f) ?
-                 &atlas_sprites[ATLAS_SPRITE_PLAYER_F2] :
-                 &atlas_sprites[ATLAS_SPRITE_PLAYER_F1], &transform);
+    get_atlas_sprite(get_entity_frame(&game_state.player.entity, ATLAS_SPRITE_PLAYER_FRAME1, ATLAS_SPRITE_PLAYER_FRAME2),
+                     &sprite_rect);
+    blit_texture(game_state.atlas, player_x, player_y, &sprite_rect, NULL);//&transform);
+
+    clear_spotlights();
+    draw_spotlight(player_x + 16, player_y + 16, 160);
+    submit_spotlights();
 
     // OpenGL stuff
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, DEFAULT_FRAMEBUFFER_WIDTH,

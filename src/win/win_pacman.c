@@ -21,7 +21,7 @@
 #define WIN_CHECK_CREATION_ERROR(expr, msg) \
     do { \
         if(!(expr)) { \
-            OutputDebugStringA(msg); \
+            MessageBoxA(NULL, msg, "Error", MB_ICONERROR); \
             exit(-1); \
         } \
     } while(0)
@@ -37,6 +37,20 @@ volatile struct {
     .input = 0,
     .running = true
 };
+
+static struct {
+    char *names;
+    uint32_t count;
+    uint32_t current;
+} level_files = {
+    .names = NULL,
+    .count = 0,
+    .current = 0
+};
+
+int level_name_compare(const void *lhs, const void *rhs) {
+    return strcmp(lhs, rhs) > 0;
+}
 
 LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
 
@@ -168,6 +182,31 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev, LPSTR args, int cmd_show)
 
     WIN_CHECK_CREATION_ERROR(window, "Could not create window!\n");
 
+    // Query all the level names
+    static const char *level_dir = "data/level/*.csv";
+    WIN32_FIND_DATAA file_data;
+    HANDLE level_dir_handle = FindFirstFileA(level_dir, &file_data);
+    if(level_dir_handle) {
+        do {
+            level_files.count++;
+        } while(FindNextFileA(level_dir_handle, &file_data));
+        FindClose(level_dir_handle);
+
+        level_files.names = calloc(1, (MAX_PATH + 1) * level_files.count);
+
+        int32_t i = 0;
+        level_dir_handle = FindFirstFileA(level_dir, &file_data);
+        do {
+            memcpy(&level_files.names[i * (MAX_PATH + 1)], file_data.cFileName, MAX_PATH);
+            i++;
+        } while(FindNextFileA(level_dir_handle, &file_data));
+        FindClose(level_dir_handle);
+
+        qsort(level_files.names, level_files.count, MAX_PATH + 1, level_name_compare);
+    } else {
+        WIN_CHECK_CREATION_ERROR(0, "Failed to load any level data!\n");
+    }
+
     // We run the game on a different thread, so it doesn't freeze when dragging the window around
     game_env_data.semaphore = CreateSemaphoreW(NULL, 0, 1, NULL);
     HANDLE game_thread = CreateThread(NULL, 0, win_game_init_and_run, window, 0, NULL);
@@ -189,6 +228,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev, LPSTR args, int cmd_show)
     WaitForSingleObject(game_thread, INFINITE);
     CloseHandle(game_thread);
     CloseHandle(game_env_data.semaphore);
+
+    free(level_files.names);
 
     DestroyWindow(window);
 
@@ -268,77 +309,64 @@ static HANDLE level_dir_handle;
 
 Level * get_next_level_from_disk(void) {
     static char buf[9999];
-    WIN32_FIND_DATAA file_data;
+    snprintf(buf, sizeof(buf), "data/level/%s", &level_files.names[level_files.current * (MAX_PATH + 1)]);
+    FILE *f = fopen(buf, "rb");
 
-    if(level_dir_handle) {
-        if(!FindNextFileA(level_dir_handle, &file_data)) {
-            FindClose(level_dir_handle);
-            level_dir_handle = NULL;
-        }
-    }
+    level_files.current = (level_files.current + 1) % level_files.count;
 
-    if(!level_dir_handle) {
-        level_dir_handle = FindFirstFileA("data/level/*.txt", &file_data);
-    }
+    if(f) {
+        static const char *delims = " ,\n\r";
 
-    if(level_dir_handle) {
-        snprintf(buf, sizeof(buf), "data/level/%s", file_data.cFileName);
-        FILE *f = fopen(buf, "rb");
+        int row_count = 0;
+        int max_column_count = 0;
 
-        if(f) {
-            static const char *delims = " ,\n\r";
+        // First determine how many tiles there are
+        while(fgets(buf, sizeof(buf), f)) {
+            row_count++;
+            int column_count = 0;
 
-            int row_count = 0;
-            int max_column_count = 0;
-
-            // First determine how many tiles there are
-            while(fgets(buf, sizeof(buf), f)) {
-                row_count++;
-                int column_count = 0;
-
-                char *token;
-                char *b = buf;
-                while((token = strtok(b, delims)) != NULL) {
-                    b = NULL;
-                    column_count++;
-                }
-
-                if(column_count > max_column_count) {
-                    max_column_count = column_count;
-                }
+            char *token;
+            char *b = buf;
+            while((token = strtok(b, delims)) != NULL) {
+                b = NULL;
+                column_count++;
             }
 
-            fseek(f, 0, SEEK_SET);
-
-            Level *level = calloc(1, offsetof(struct Level, data) + (row_count * max_column_count * sizeof(uint32_t)));
-            level->rows = row_count;
-            level->columns = max_column_count;
-
-            // Parse the level/tile data
-            int index = 0;
-            while(fgets(buf, sizeof(buf), f)) {
-                char *token;
-                char *b = buf;
-
-                while((token = strtok(b, delims)) != NULL) {
-                    int value = atoi(token);
-                    switch(value) {
-                        case -1:
-                            level->data[index] = TILE_TYPE_EMPTY;
-                            break;
-                        default:
-                            level->data[index] = value;
-                            break;
-                    }
-
-                    b = NULL;
-                    index++;
-                }
+            if(column_count > max_column_count) {
+                max_column_count = column_count;
             }
-
-            fclose(f);
-            return level;
         }
+
+        fseek(f, 0, SEEK_SET);
+
+        Level *level = calloc(1, offsetof(struct Level, data) + (row_count * max_column_count * sizeof(uint32_t)));
+        level->rows = row_count;
+        level->columns = max_column_count;
+
+        // Parse the level/tile data
+        int index = 0;
+        while(fgets(buf, sizeof(buf), f)) {
+            char *token;
+            char *b = buf;
+
+            while((token = strtok(b, delims)) != NULL) {
+                int value = atoi(token);
+                switch(value) {
+                    case -1:
+                        level->data[index] = ATLAS_SPRITE_EMPTY;
+                        break;
+                    default:
+                        level->data[index] = value;
+                        break;
+                }
+
+                b = NULL;
+                index++;
+            }
+        }
+
+        fclose(f);
+        return level;
     }
 
     return NULL;
