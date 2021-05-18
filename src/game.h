@@ -44,6 +44,7 @@ typedef struct {
 typedef struct {
     TileCoord coord;
     MovementDirection dir;
+    MovementDirection facing;
     float default_speed;
     float speed;
 } GameEntity;
@@ -57,6 +58,8 @@ typedef struct {
 typedef struct {
     TileCoord target;
     GameEntity entity;
+    Timer eaten_anim_timer;
+
     enum {
         GHOST_STATE_SCATTER,
         GHOST_STATE_CHASE,

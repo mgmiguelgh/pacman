@@ -17,39 +17,6 @@ typedef struct {
     int32_t y;
 } TileCoord;
 
-typedef enum {
-    ATLAS_SPRITE_EMPTY,
-    ATLAS_SPRITE_PLAYER_FRAME1,
-    ATLAS_SPRITE_PLAYER_FRAME2,
-    ATLAS_SPRITE_BLINKY_FRAME1,
-    ATLAS_SPRITE_BLINKY_FRAME2,
-    ATLAS_SPRITE_PINKY_FRAME1,
-    ATLAS_SPRITE_PINKY_FRAME2,
-    ATLAS_SPRITE_INKY_FRAME1,
-    ATLAS_SPRITE_INKY_FRAME2,
-    ATLAS_SPRITE_CLYDE_FRAME1,
-    ATLAS_SPRITE_CLYDE_FRAME2,
-    ATLAS_SPRITE_BLINKY_FRIGHTENED_FRAME1,
-    ATLAS_SPRITE_BLINKY_FRIGHTENED_FRAME2,
-    ATLAS_SPRITE_PINKY_FRIGHTENED_FRAME1,
-    ATLAS_SPRITE_PINKY_FRIGHTENED_FRAME2,
-    ATLAS_SPRITE_INKY_FRIGHTENED_FRAME1,
-    ATLAS_SPRITE_INKY_FRIGHTENED_FRAME2,
-    ATLAS_SPRITE_CLYDE_FRIGHTENED_FRAME1,
-    ATLAS_SPRITE_CLYDE_FRIGHTENED_FRAME2,
-    ATLAS_SPRITE_GHOST_EATEN_UP,
-    ATLAS_SPRITE_GHOST_EATEN_LEFT,
-    ATLAS_SPRITE_GHOST_EATEN_DOWN,
-    ATLAS_SPRITE_GHOST_EATEN_RIGHT,
-    ATLAS_SPRITE_WALL_NORMAL,
-    ATLAS_SPRITE_WALL_BOTTOM,
-    ATLAS_SPRITE_GHOST_HOUSE_GATE,
-    ATLAS_SPRITE_PELLET,
-    ATLAS_SPRITE_POWER_PELLET,
-
-    ATLAS_SPRITE_COUNT
-} AtlasSprite;
-
 typedef struct Level {
     TileCoord gate_tile;
     uint32_t pellet_count;
@@ -59,9 +26,11 @@ typedef struct Level {
     uint32_t data[];
 } Level;
 
+#define X_COORDS_VALID(xcoord, level) ((xcoord) >= 0 && (xcoord) < (int32_t)(level)->columns)
+#define Y_COORDS_VALID(ycoord, level) ((ycoord) >= 0 && (ycoord) < (int32_t)(level)->rows)
+
 static inline uint32_t * get_level_tile(Level *level, int32_t x, int32_t y) {
-    if(level && x >= 0 && x < (int32_t)level->columns &&
-       y >= 0 && y < (int32_t)level->rows) {
+    if(level && x >= 0 && X_COORDS_VALID(x, level) && Y_COORDS_VALID(y, level)) {
         return &level->data[y * level->columns + x];
     }
 
@@ -73,8 +42,41 @@ static inline uint32_t get_level_tile_data(const Level *level, const TileCoord *
     return level->data[coord->y * level->columns + coord->x];
 }
 
+typedef enum {
+    TILE_NEIGHBOR_TOP,
+    TILE_NEIGHBOR_LEFT,
+    TILE_NEIGHBOR_BOTTOM,
+    TILE_NEIGHBOR_RIGHT
+} TileNeighbor;
+
+static inline int32_t get_neighboring_tile_index(const Level *level, int32_t x, int32_t y, TileNeighbor dir) {
+    int32_t index = -1;
+
+    if(level) {
+#define NEIGHBOR_TILE_INDEX(neighbor_dir, xn, yn) \
+        case neighbor_dir: \
+            if(X_COORDS_VALID((xn), level) && Y_COORDS_VALID((yn), level)) { \
+                index = (yn) * level->columns + (xn); \
+            } \
+            break
+
+        switch(dir) {
+            NEIGHBOR_TILE_INDEX(TILE_NEIGHBOR_TOP, x, (y-1));
+            NEIGHBOR_TILE_INDEX(TILE_NEIGHBOR_LEFT, (x-1), y);
+            NEIGHBOR_TILE_INDEX(TILE_NEIGHBOR_BOTTOM, x, (y+1));
+            NEIGHBOR_TILE_INDEX(TILE_NEIGHBOR_RIGHT, (x+1), y);
+        }
+
+#undef NEIGHBOR_TILE_INDEX
+    }
+
+    return index;
+}
+
 Level * load_next_level(void);
 void unload_level(Level **level);
-void get_atlas_sprite_rect(AtlasSprite id, Rect *r);
+
+#undef X_COORDS_VALID
+#undef Y_COORDS_VALID
 
 #endif /* LEVEL_H */

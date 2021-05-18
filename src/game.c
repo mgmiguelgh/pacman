@@ -16,13 +16,14 @@
 #include "texture.c"
 #include "render.c"
 
-#define EPSILON 0.1f
+#define EPSILON 0.05f
 #define DEFAULT_MOVEMENT_SPEED 5.0f
 #define FRIGHTENED_SPEED_MOD 0.65f
 #define SCATTER_MODE_TIME 5.0f
 #define CHASE_MODE_TIME 20.0f
 #define FRIGHTENED_MODE_TIME 10.0f
 #define INPUT_QUEUE_TIME_MAX 1.0f
+#define DEFAULT_EATEN_ANIM_TIMER_TARGET 1.0f
 
 static const Vector2 direction_vectors[4] = {
     { .x = 0.0f, .y = -1.0f }, // Up
@@ -86,7 +87,7 @@ static inline bool coords_within_bounds(const TileCoord *coord) {
 }
 
 static inline bool float_nearly_equal(float a, float b) {
-    return fabsf(a - b) < EPSILON;
+    return fabsf(a - b) <= EPSILON;
 }
 
 static inline float dot_product(MovementDirection dir1, MovementDirection dir2) {
@@ -140,28 +141,9 @@ static void set_ghost_speed(GhostEntity *ghost);
 static void wrap_tile_coords(TileCoord *coord, bool outside_area);
 static void tile_coords_from_direction(TileCoord *coord, MovementDirection direction);
 
-static void reset_game(void) {
-    if(!game_state.atlas) {
-        game_state.atlas = load_texture("data/texture_atlas.bmp", 0xff00ff);
-    }
-    memset(&game_state.player, 0, sizeof(game_state.player));
-    memset(&game_state.ghosts, 0, sizeof(game_state.ghosts));
-
-    game_state.mode = GAME_MODE_SCATTER;
-    game_state.ghost_mode_timer.running = true;
-    game_state.ghost_mode_timer.elapsed = 0.0f;
-    game_state.ghost_mode_timer.target = SCATTER_MODE_TIME;
-    game_state.frightened_timer.running = false;
-    game_state.frightened_timer.elapsed = 0.0f;
-    game_state.frightened_timer.target = FRIGHTENED_MODE_TIME;
-
-    game_state.level = load_next_level();
-    memset(&game_state.level->gate_tile, 0, sizeof(game_state.level->gate_tile));
-    game_state.level->pellet_count = 0;
-    game_state.level->pellets_eaten = 0;
-
-    for(int32_t y = 0; y < LAST_TILE_Y; y++) {
-        for(int32_t x = 0; x < LAST_TILE_X; x++) {
+static void set_starting_positions(void) {
+    for(int32_t y = 0; y < (int32_t)game_state.level->rows; y++) {
+        for(int32_t x = 0; x < (int32_t)game_state.level->columns; x++) {
             uint32_t *tile = get_level_tile(game_state.level, x, y);
 
             if(!tile) {
@@ -182,32 +164,24 @@ static void reset_game(void) {
                     break;
                 case ATLAS_SPRITE_BLINKY_FRAME1:
                 case ATLAS_SPRITE_BLINKY_FRAME2:
-                case ATLAS_SPRITE_BLINKY_FRIGHTENED_FRAME1:
-                case ATLAS_SPRITE_BLINKY_FRIGHTENED_FRAME2:
                     game_state.ghosts[GHOST_BLINKY].entity.coord.x = x;
                     game_state.ghosts[GHOST_BLINKY].entity.coord.y = y;
                     *tile = ATLAS_SPRITE_EMPTY;
                     break;
                 case ATLAS_SPRITE_PINKY_FRAME1:
                 case ATLAS_SPRITE_PINKY_FRAME2:
-                case ATLAS_SPRITE_PINKY_FRIGHTENED_FRAME1:
-                case ATLAS_SPRITE_PINKY_FRIGHTENED_FRAME2:
                     game_state.ghosts[GHOST_PINKY].entity.coord.x = x;
                     game_state.ghosts[GHOST_PINKY].entity.coord.y = y;
                     *tile = ATLAS_SPRITE_EMPTY;
                     break;
                 case ATLAS_SPRITE_CLYDE_FRAME1:
                 case ATLAS_SPRITE_CLYDE_FRAME2:
-                case ATLAS_SPRITE_CLYDE_FRIGHTENED_FRAME1:
-                case ATLAS_SPRITE_CLYDE_FRIGHTENED_FRAME2:
                     game_state.ghosts[GHOST_CLYDE].entity.coord.x = x;
                     game_state.ghosts[GHOST_CLYDE].entity.coord.y = y;
                     *tile = ATLAS_SPRITE_EMPTY;
                     break;
                 case ATLAS_SPRITE_INKY_FRAME1:
                 case ATLAS_SPRITE_INKY_FRAME2:
-                case ATLAS_SPRITE_INKY_FRIGHTENED_FRAME1:
-                case ATLAS_SPRITE_INKY_FRIGHTENED_FRAME2:
                     game_state.ghosts[GHOST_INKY].entity.coord.x = x;
                     game_state.ghosts[GHOST_INKY].entity.coord.y = y;
                     *tile = ATLAS_SPRITE_EMPTY;
@@ -222,18 +196,47 @@ static void reset_game(void) {
         }
     }
 
+}
+
+static void reset_game(void) {
+    if(!game_state.atlas) {
+        game_state.atlas = load_texture("data/texture_atlas.bmp", 0xff00ff);
+    }
+    memset(&game_state.player, 0, sizeof(game_state.player));
+    memset(&game_state.ghosts, 0, sizeof(game_state.ghosts));
+
+    game_state.mode = GAME_MODE_SCATTER;
+    game_state.ghost_mode_timer.running = true;
+    game_state.ghost_mode_timer.elapsed = 0.0f;
+    game_state.ghost_mode_timer.target = SCATTER_MODE_TIME;
+    game_state.frightened_timer.running = false;
+    game_state.frightened_timer.elapsed = 0.0f;
+    game_state.frightened_timer.target = FRIGHTENED_MODE_TIME;
+
+    game_state.level = load_next_level();
+    memset(&game_state.level->gate_tile, 0, sizeof(game_state.level->gate_tile));
+    game_state.level->pellet_count = 0;
+    game_state.level->pellets_eaten = 0;
+
+    set_starting_positions();
+
     game_state.player.input_queue.target = INPUT_QUEUE_TIME_MAX;
     game_state.player.entity.dir = MOVEMENT_DIR_NONE;
+    game_state.player.entity.facing = MOVEMENT_DIR_RIGHT;
     game_state.player.entity.default_speed = DEFAULT_MOVEMENT_SPEED;
     game_state.player.entity.speed = DEFAULT_MOVEMENT_SPEED;
 
     for(int32_t i = 0; i < GHOST_COUNT; i++) {
         game_state.ghosts[i].entity.dir = MOVEMENT_DIR_UP;
+        game_state.ghosts[i].entity.facing = MOVEMENT_DIR_RIGHT;
         game_state.ghosts[i].state = GHOST_STATE_SCATTER;
         game_state.ghosts[i].entity.coord.sub.x = 0.0f;
         game_state.ghosts[i].entity.coord.sub.y = 0.0f;
         game_state.ghosts[i].can_pass_gate = false;
         game_state.ghosts[i].in_ghost_house = true;
+        game_state.ghosts[i].eaten_anim_timer.running = false;
+        game_state.ghosts[i].eaten_anim_timer.elapsed = 0.0f;
+        game_state.ghosts[i].eaten_anim_timer.target = DEFAULT_EATEN_ANIM_TIMER_TARGET;
     }
 
     game_state.ghosts[GHOST_BLINKY].entity.dir = MOVEMENT_DIR_RIGHT;
@@ -481,6 +484,8 @@ void update_loop(float dt, uint32_t input) {
         } else {
             game_state.player.entity.dir = previous_dir;
         }
+
+        game_state.player.entity.facing = game_state.player.entity.dir;
     }
 
     TileCoord next_tile;
@@ -541,7 +546,13 @@ void update_loop(float dt, uint32_t input) {
         TileCoord current = game_state.ghosts[i].entity.coord;
         if(ghost_can_pass_gate(&game_state.ghosts[i]) &&
            get_level_tile_data(game_state.level, &current) == ATLAS_SPRITE_GHOST_HOUSE_GATE) {
+
             game_state.ghosts[i].in_ghost_house = game_state.ghosts[i].state == GHOST_STATE_EATEN;
+            if(game_state.ghosts[i].in_ghost_house) {
+                game_state.ghosts[i].eaten_anim_timer.running = false;
+                game_state.ghosts[i].eaten_anim_timer.elapsed = 0.0f;
+            }
+
             game_state.ghosts[i].state = (game_state.mode == GAME_MODE_SCATTER) ?
                 GHOST_STATE_SCATTER : GHOST_STATE_CHASE;
         }
@@ -579,22 +590,32 @@ void update_loop(float dt, uint32_t input) {
 
         if(best_dir != MOVEMENT_DIR_NONE) {
             game_state.ghosts[i].entity.dir = best_dir;
+            if(best_dir == MOVEMENT_DIR_LEFT ||
+               best_dir == MOVEMENT_DIR_RIGHT) {
+                game_state.ghosts[i].entity.facing = best_dir;
+            }
         }
     }
 
     Rect player_rect;
     tilecoord_to_rect(&game_state.player.entity.coord, &player_rect, 0.75f);
     for(int32_t i = 0; i < GHOST_COUNT; i++) {
+        GhostEntity *ghost = &game_state.ghosts[i];
         Rect ghost_rect;
-        tilecoord_to_rect(&game_state.ghosts[i].entity.coord, &ghost_rect, 0.75f);
+        tilecoord_to_rect(&ghost->entity.coord, &ghost_rect, 0.75f);
+
+        if(ghost->eaten_anim_timer.running) {
+            update_timer(&ghost->eaten_anim_timer, dt);
+        }
 
         if(rect_aabb_test(&player_rect, &ghost_rect)) {
-            if(game_state.ghosts[i].frightened) {
-                game_state.ghosts[i].frightened = false;
-                game_state.ghosts[i].state = GHOST_STATE_EATEN;
+            if(ghost->frightened) {
+                ghost->frightened = false;
+                ghost->state = GHOST_STATE_EATEN;
+                ghost->eaten_anim_timer.running = true;
             } else if(game_state.ghosts[i].state != GHOST_STATE_EATEN) {
                 tilecoord_to_rect(&game_state.player.entity.coord, &player_rect, 0.35f);
-                tilecoord_to_rect(&game_state.ghosts[i].entity.coord, &ghost_rect, 0.35f);
+                tilecoord_to_rect(&ghost->entity.coord, &ghost_rect, 0.35f);
 
                 if(rect_aabb_test(&player_rect, &ghost_rect)) {
                     //reset_game();
@@ -857,6 +878,19 @@ static inline AtlasSprite get_entity_frame(GameEntity *entity, AtlasSprite frame
     return (sub < 0.25f || sub >= 0.75f) ? frame1 : frame2;
 }
 
+static inline AtlasSprite get_ghost_eaten_frame(GhostEntity *ghost, AtlasSprite frame1, AtlasSprite frame2) {
+    assert(ghost);
+
+    float n = ghost->eaten_anim_timer.elapsed / ghost->eaten_anim_timer.target;
+    if((n > 0.25f && n <= 0.5f) || (n > 0.75f)) {
+        return frame2;
+    } else if(n > 0.5f && n <= 0.75f) {
+        return ATLAS_SPRITE_GHOST_EATEN_FRAME3;
+    }
+
+    return frame1;
+}
+
 void render_loop(void) {
     Color *fb = get_framebuffer();
     memset(fb, 0, sizeof(*fb) * DEFAULT_FRAMEBUFFER_WIDTH * DEFAULT_FRAMEBUFFER_HEIGHT);
@@ -870,31 +904,40 @@ void render_loop(void) {
     for(int32_t y = 0; y < TILE_COUNT_Y; y++) {
         for(int32_t x = 0; x < TILE_COUNT_X; x++) {
             TileCoord coord = { .x = x, .y = y };
-            get_atlas_sprite(get_level_tile_data(game_state.level, &coord), &sprite_rect);
+            get_atlas_sprite_rect(get_level_tile_data(game_state.level, &coord), &sprite_rect);
             blit_texture(game_state.atlas, x * TILE_SIZE - game_camera.scroll.x,
                          y * TILE_SIZE - game_camera.scroll.y, &sprite_rect, NULL);
         }
     }
 
+    clear_spotlights();
+    static float bias = 0.0f;
+    bias += 0.0125f;
+    float t = (sinf(bias) + 1.0f) * 0.5f;
+    float gradient = LERP(t, 2.0f, 4.0f);
+    float radius = LERP(t, 30.0f, 45.f);
+
     Rect rdest;
     // Ghosts
     for(int32_t i = 0; i < GHOST_COUNT; i++) {
-        tilecoord_to_rect(&game_state.ghosts[i].entity.coord, &rdest, 1.0f);
+        GhostEntity *ghost = &game_state.ghosts[i];
+        tilecoord_to_rect(&ghost->entity.coord, &rdest, 1.0f);
 
 #define SELECT_GHOST_SPRITE(ghost_name, f1, f2) \
         case GHOST_##ghost_name: \
-            get_atlas_sprite(get_entity_frame(&game_state.ghosts[GHOST_##ghost_name].entity, f1, f2), &sprite_rect); \
+            get_atlas_sprite_rect(get_entity_frame(&game_state.ghosts[GHOST_##ghost_name].entity, f1, f2), &sprite_rect); \
             break;
 
-        if(game_state.ghosts[i].frightened) {
+        if(ghost->frightened) {
             switch(i) {
-                SELECT_GHOST_SPRITE(BLINKY, ATLAS_SPRITE_BLINKY_FRIGHTENED_FRAME1, ATLAS_SPRITE_BLINKY_FRIGHTENED_FRAME2);
-                SELECT_GHOST_SPRITE(PINKY, ATLAS_SPRITE_PINKY_FRIGHTENED_FRAME1, ATLAS_SPRITE_PINKY_FRIGHTENED_FRAME2);
-                SELECT_GHOST_SPRITE(CLYDE, ATLAS_SPRITE_CLYDE_FRIGHTENED_FRAME1, ATLAS_SPRITE_CLYDE_FRIGHTENED_FRAME2);
-                SELECT_GHOST_SPRITE(INKY, ATLAS_SPRITE_INKY_FRIGHTENED_FRAME1, ATLAS_SPRITE_INKY_FRIGHTENED_FRAME2);
+                SELECT_GHOST_SPRITE(BLINKY, ATLAS_SPRITE_GHOST_FRIGHTENED_FRAME1, ATLAS_SPRITE_GHOST_FRIGHTENED_FRAME2);
+                SELECT_GHOST_SPRITE(PINKY, ATLAS_SPRITE_GHOST_FRIGHTENED_FRAME1, ATLAS_SPRITE_GHOST_FRIGHTENED_FRAME2);
+                SELECT_GHOST_SPRITE(CLYDE, ATLAS_SPRITE_GHOST_FRIGHTENED_FRAME1, ATLAS_SPRITE_GHOST_FRIGHTENED_FRAME2);
+                SELECT_GHOST_SPRITE(INKY, ATLAS_SPRITE_GHOST_FRIGHTENED_FRAME1, ATLAS_SPRITE_GHOST_FRIGHTENED_FRAME2);
             }
-        } else if(game_state.ghosts[i].state == GHOST_STATE_EATEN) {
-            get_atlas_sprite(ATLAS_SPRITE_GHOST_EATEN_UP + game_state.ghosts[i].entity.dir, &sprite_rect);
+        } else if(ghost->state == GHOST_STATE_EATEN) {
+            AtlasSprite base = ATLAS_SPRITE_GHOST_EATEN_UP_FRAME1 + (ghost->entity.dir * 2);
+            get_atlas_sprite_rect(get_ghost_eaten_frame(ghost, base, base + 1), &sprite_rect);
         } else {
             switch(i) {
                 SELECT_GHOST_SPRITE(BLINKY, ATLAS_SPRITE_BLINKY_FRAME1, ATLAS_SPRITE_BLINKY_FRAME2);
@@ -906,8 +949,14 @@ void render_loop(void) {
 
 #undef SELECT_GHOST_SPRITE
 
+        Matrix3x3 transform = get_scaling_mat3((ghost->state != GHOST_STATE_EATEN &&
+                                                ghost->entity.facing == MOVEMENT_DIR_LEFT) ?
+                                               -1.0f : 1.0f, 1.0f);
         blit_texture(game_state.atlas, rdest.x - game_camera.scroll.x,
-                     rdest.y - game_camera.scroll.y, &sprite_rect, NULL);
+                     rdest.y - game_camera.scroll.y, &sprite_rect, &transform);
+
+        draw_spotlight(rdest.x - game_camera.scroll.x + TILE_SIZE / 2,
+                       rdest.y - game_camera.scroll.y + TILE_SIZE / 2, (int32_t)radius, gradient);
     }
 
     // Player
@@ -930,20 +979,31 @@ void render_loop(void) {
         player_y = DEFAULT_FRAMEBUFFER_HEIGHT / 2;
     }
 
-    static float r = 0.0f;
-    r += 0.005f;
-    Matrix3x3 transform = get_rotation_mat3(r);
-    float s = sinf(r) + 1.5f;
-    Matrix3x3 scale = get_scaling_mat3(s, s);
-    transform = mat3_mul(&transform, &scale);
+    Matrix3x3 transform;
+    switch(game_state.player.entity.facing) {
+        case MOVEMENT_DIR_UP:
+            transform = get_rotation_mat3(M_PI * 0.5f);
+            break;
+        case MOVEMENT_DIR_LEFT:
+            transform = get_scaling_mat3(-1.0f, 1.0f);
+            break;
+        case MOVEMENT_DIR_DOWN:
+            transform = get_rotation_mat3(M_PI * 1.5f);
+            break;
+        case MOVEMENT_DIR_RIGHT:
+        default:
+            transform = get_identity_mat3();
+            break;
+    }
 
-    get_atlas_sprite(get_entity_frame(&game_state.player.entity, ATLAS_SPRITE_PLAYER_FRAME1, ATLAS_SPRITE_PLAYER_FRAME2),
-                     &sprite_rect);
-    blit_texture(game_state.atlas, player_x, player_y, &sprite_rect, NULL);//&transform);
+    get_atlas_sprite_rect(get_entity_frame(&game_state.player.entity, ATLAS_SPRITE_PLAYER_FRAME1, ATLAS_SPRITE_PLAYER_FRAME2),
+                          &sprite_rect);
+    blit_texture(game_state.atlas, player_x, player_y, &sprite_rect, &transform);
 
-    clear_spotlights();
-    draw_spotlight(player_x + 16, player_y + 16, 160);
+    draw_spotlight(player_x + TILE_SIZE / 2, player_y + TILE_SIZE / 2, (int32_t)radius * 2, gradient);
     submit_spotlights();
+
+    draw_text(game_state.atlas, "Test text 123", 32, 32);
 
     // OpenGL stuff
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, DEFAULT_FRAMEBUFFER_WIDTH,
