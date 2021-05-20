@@ -52,10 +52,14 @@ int level_name_compare(const void *lhs, const void *rhs) {
     return strcmp(lhs, rhs) > 0;
 }
 
+static DWORD get_window_style(void) {
+    return WS_CAPTION | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SIZEBOX | WS_SYSMENU | WS_VISIBLE;
+}
+
 LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
 
-#define SET_INPUT(cond, dir) if((cond)) { game_env_data.input |= dir; }
-#define UNSET_INPUT(cond, dir) if((cond)) { game_env_data.input &= ~dir; }
+#define SET_INPUT(cond, action) if((cond)) { game_env_data.input |= action; }
+#define UNSET_INPUT(cond, action) if((cond)) { game_env_data.input &= ~action; }
 
     switch(message) {
         case WM_DESTROY:
@@ -66,22 +70,39 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l
             SET_INPUT(w_param == 'S' || w_param == VK_DOWN, INPUT_DOWN);
             SET_INPUT(w_param == 'A' || w_param == VK_LEFT, INPUT_LEFT);
             SET_INPUT(w_param == 'D' || w_param == VK_RIGHT, INPUT_RIGHT);
-            SET_INPUT(w_param == 'N' || w_param == 'Z', INPUT_CONFIRM);
-            SET_INPUT(w_param == 'M' || w_param == 'X', INPUT_CANCEL);
-
-            if(w_param == VK_ESCAPE) {
-                game_env_data.running = false;
-            }
-
+            SET_INPUT(w_param == 'M' || w_param == 'Z' || w_param == VK_RETURN, INPUT_CONFIRM);
+            SET_INPUT(w_param == VK_ESCAPE, INPUT_MENU);
             break;
         case WM_KEYUP:
             UNSET_INPUT(w_param == 'W' || w_param == VK_UP, INPUT_UP);
             UNSET_INPUT(w_param == 'S' || w_param == VK_DOWN, INPUT_DOWN);
             UNSET_INPUT(w_param == 'A' || w_param == VK_LEFT, INPUT_LEFT);
             UNSET_INPUT(w_param == 'D' || w_param == VK_RIGHT, INPUT_RIGHT);
-            UNSET_INPUT(w_param == 'N' || w_param == 'Z', INPUT_CONFIRM);
-            UNSET_INPUT(w_param == 'M' || w_param == 'X', INPUT_CANCEL);
+            UNSET_INPUT(w_param == 'M' || w_param == 'Z' || w_param == VK_RETURN, INPUT_CONFIRM);
+            UNSET_INPUT(w_param == VK_ESCAPE, INPUT_MENU);
             break;
+        case WM_SIZE: {
+            signal_window_resize(LOWORD(l_param), HIWORD(l_param));
+            break;
+        }
+        case WM_SIZING: {
+            RECT *r = (RECT *)l_param;
+            RECT window_rect = { 0 };
+            AdjustWindowRectEx(&window_rect, get_window_style(), FALSE, 0);
+
+            int32_t xoff = window_rect.right - window_rect.left;
+            int32_t yoff = window_rect.bottom - window_rect.top;
+
+            if((r->right - r->left - xoff) < DEFAULT_WINDOW_WIDTH) {
+                r->right = r->left + (DEFAULT_WINDOW_WIDTH + xoff);
+            }
+
+            if((r->bottom - r->top - yoff) < DEFAULT_WINDOW_HEIGHT) {
+                r->bottom = r->top + (DEFAULT_WINDOW_HEIGHT + yoff);
+            }
+
+            break;
+        }
         default:
             return DefWindowProcW(window, message, w_param, l_param);
     }
@@ -106,9 +127,9 @@ DWORD WINAPI win_game_init_and_run(LPVOID parameter) {
     QueryPerformanceCounter(&current_time);
 
     while(game_env_data.running) {
-        update_loop(elapsed_time, game_env_data.input);
+        game_env_data.running = update_loop(elapsed_time, game_env_data.input);
 
-        render_loop();
+        render_loop(elapsed_time);
         SwapBuffers(device_context);
 
         prev_time = current_time;
@@ -156,12 +177,10 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev, LPSTR args, int cmd_show)
         .bottom = DEFAULT_WINDOW_HEIGHT
     };
 
-    DWORD window_style = WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU | WS_VISIBLE;
-    DWORD extended_window_style = 0;
+    DWORD window_style = get_window_style();
+    AdjustWindowRectEx(&client_rect, window_style, FALSE, 0);
 
-    AdjustWindowRectEx(&client_rect, window_style, FALSE, extended_window_style);
-
-    HWND window = CreateWindowExW(extended_window_style,
+    HWND window = CreateWindowExW(0,
                                   window_class.lpszClassName,
                                   L"Pacman Clone",
                                   window_style,
@@ -174,13 +193,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev, LPSTR args, int cmd_show)
                                   instance,
                                   NULL);
 
-#ifdef CREATE_BORDERLESS_WINDOW
-    // Need to do this here for some reason. This makes sure it doesn't open up in exclusive fullscreen mode
-    SetWindowLong(window, GWL_STYLE, WS_POPUP);
-    ShowWindow(window, SW_SHOW);
-#endif
-
     WIN_CHECK_CREATION_ERROR(window, "Could not create window!\n");
+
+    GetClientRect(window, &client_rect);
 
     // Query all the level names
     static const char *level_dir = "data/level/*.csv";
@@ -370,4 +385,8 @@ Level * get_next_level_from_disk(void) {
     }
 
     return NULL;
+}
+
+void set_next_level_index(uint32_t index) {
+    level_files.current = index % level_files.count;
 }

@@ -9,12 +9,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "common.h"
 #include "level.h"
 #include "render.h"
-
-#define IGNORED_VARIABLE(v) (void)v
-
-typedef uint32_t bool32;
 
 enum {
     INPUT_UP = 1 << 0,
@@ -22,10 +19,11 @@ enum {
     INPUT_DOWN = 1 << 2,
     INPUT_RIGHT = 1 << 3,
     INPUT_CONFIRM = 1 << 4,
-    INPUT_CANCEL = 1 << 5
+    INPUT_MENU = 1 << 5
 };
 
 #define TILE_SIZE 32
+#define TILE_SIZE_ALT 16
 
 typedef enum {
     MOVEMENT_DIR_UP = 0,
@@ -34,12 +32,6 @@ typedef enum {
     MOVEMENT_DIR_RIGHT,
     MOVEMENT_DIR_NONE
 } MovementDirection;
-
-typedef struct {
-    bool32 running;
-    float elapsed;
-    float target;
-} Timer;
 
 typedef struct {
     TileCoord coord;
@@ -70,26 +62,17 @@ typedef struct {
     union {
         struct {
             uint32_t frightened : 1;
-            uint32_t can_pass_gate : 1;
             uint32_t in_ghost_house : 1;
         };
         uint32_t flags;
     };
 } GhostEntity;
 
-enum {
-    GHOST_BLINKY,
-    GHOST_PINKY,
-    GHOST_CLYDE,
-    GHOST_INKY,
-
-    GHOST_COUNT
-};
-
 void initialize_game(void);
 void close_game(void);
-bool update_timer(Timer *timer, float ms);
-void update_loop(float dt, uint32_t input);
-void render_loop(void);
+void signal_window_resize(int32_t new_width, int32_t new_height);
+
+bool update_loop(float dt, uint32_t input);
+void render_loop(float dt);
 
 #endif /* GAME_H */

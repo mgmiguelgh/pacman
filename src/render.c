@@ -8,11 +8,16 @@
 #include <float.h>
 #include <stdbool.h>
 
-static Color framebuffer[DEFAULT_FRAMEBUFFER_WIDTH * DEFAULT_FRAMEBUFFER_HEIGHT];
+static Color4 framebuffer[DEFAULT_FRAMEBUFFER_WIDTH * DEFAULT_FRAMEBUFFER_HEIGHT];
 static float light_buffer[DEFAULT_FRAMEBUFFER_WIDTH * DEFAULT_FRAMEBUFFER_HEIGHT];
+static float draw_color_intensity = 1.0f;
 
-Color * get_framebuffer(void) {
+Color4 * get_framebuffer(void) {
     return framebuffer;
+}
+
+void set_draw_intensity(float value) {
+    draw_color_intensity = CLAMP(value, 0.0f, 1.0f);
 }
 
 static inline int in_bounds(int32_t x, int32_t y, int32_t width, int32_t height) {
@@ -20,7 +25,7 @@ static inline int in_bounds(int32_t x, int32_t y, int32_t width, int32_t height)
         y >= 0 && y < height;
 }
 
-static inline void set_pixel(int32_t x, int32_t y, Color color) {
+static inline void set_pixel(int32_t x, int32_t y, Color4 color) {
     bool should_render = color.a > 0.0f;
     if(should_render && in_bounds(x, y, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT)) {
         framebuffer[y * DEFAULT_FRAMEBUFFER_WIDTH + x] = color;
@@ -36,11 +41,11 @@ static inline void add_light(int32_t x, int32_t y, float intensity) {
     }
 }
 
-static inline Color convert_to_float_color(uint32_t color) {
-    return (Color) {
-        .r = (float)(color & 0xff) / 255.0f,
-        .g = (float)((color >> 8) & 0xff) / 255.0f,
-        .b = (float)((color >> 16) & 0xff) / 255.0f,
+static inline Color4 convert_to_float_color(uint32_t color) {
+    return (Color4) {
+        .r = ((float)(color & 0xff) / 255.0f) * draw_color_intensity,
+        .g = ((float)((color >> 8) & 0xff) / 255.0f) * draw_color_intensity,
+        .b = ((float)((color >> 16) & 0xff) / 255.0f) * draw_color_intensity,
         .a = (float)(!!((color >> 24) & 0xff))
     };
 }
@@ -64,9 +69,7 @@ static void simple_forward_blit(const Texture2D *texture, int32_t dx, int32_t dy
             uint32_t tex_color;
             memcpy(&tex_color, &texture->data[texture_index], sizeof(uint32_t));
 
-            Color c = convert_to_float_color(tex_color);
-
-            set_pixel(x0, ystart, c);
+            set_pixel(x0, ystart, convert_to_float_color(tex_color));
         }
     }
 }
@@ -161,9 +164,7 @@ void blit_texture(const Texture2D *texture, int32_t dx, int32_t dy, const Rect *
                         uint32_t tex_color;
                         memcpy(&tex_color, &texture->data[texture_index], sizeof(uint32_t));
 
-                        Color c = convert_to_float_color(tex_color);
-
-                        set_pixel(x0, y0, c);
+                        set_pixel(x0, y0, convert_to_float_color(tex_color));
                     }
                 }
             }
@@ -213,23 +214,23 @@ void submit_spotlights(void) {
 
     for(int32_t y = 0; y < DEFAULT_FRAMEBUFFER_HEIGHT; y++) {
         for(int32_t x = 0; x < DEFAULT_FRAMEBUFFER_WIDTH; x++) {
-            Color *pixel = &framebuffer[y * DEFAULT_FRAMEBUFFER_WIDTH + x];
+            Color4 *pixel = &framebuffer[y * DEFAULT_FRAMEBUFFER_WIDTH + x];
 
             float intensity = light_buffer[y * DEFAULT_FRAMEBUFFER_WIDTH + x];
-            intensity = (intensity > dither_map[y%2][x%2]) ? 1.0f : 0.15f;
+            intensity = (intensity > dither_map[y%2][x%2]) ? 1.0f : 0.35f;
 
-            pixel->r = CLAMP((pixel->r * intensity), 0.0f, 1.0f);
-            pixel->g = CLAMP((pixel->g * intensity), 0.0f, 1.0f);
-            pixel->b = CLAMP((pixel->b * intensity), 0.0f, 1.0f);
-            pixel->a = CLAMP((pixel->a * intensity), 0.0f, 1.0f);
+            pixel->r = pixel->r * intensity;
+            pixel->g = pixel->g * intensity;
+            pixel->b = pixel->b * intensity;
+            pixel->a = pixel->a * intensity;
         }
     }
 }
 
-#define LETTER_SPACING 2
-#define SPACE_PIXELS 16
+#define LETTER_SPACING 1
+#define SPACE_PIXELS 12
 
-void draw_text(const Texture2D *texture, const char *text, int32_t x, int32_t y) {
+void draw_text(const Texture2D *texture, int32_t x, int32_t y, const char *text) {
     if(texture && text) {
         char c;
         int index = 0;
@@ -252,76 +253,15 @@ void draw_text(const Texture2D *texture, const char *text, int32_t x, int32_t y)
     }
 }
 
+void draw_formatted_text(const Texture2D *texture, int32_t x, int32_t y, const char *text, ...) {
+    static char buf[999];
+    va_list list;
+    va_start(list, text);
+    vsnprintf(buf, sizeof(buf), text, list);
+    va_end(list);
+
+    draw_text(texture, x, y, buf);
+}
+
 #undef LETTER_SPACING
 #undef SPACE_PIXELS
-
-static const Rect atlas_sprites[ATLAS_SPRITE_COUNT] = {
-    [ATLAS_SPRITE_EMPTY] = { .x = 0, .y = 0, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_PLAYER_FRAME1] = { .x = 32, .y = 0, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_PLAYER_FRAME2] = { .x = 64, .y = 0, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_BLINKY_FRAME1] = { .x = 96, .y = 0, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_BLINKY_FRAME2] = { .x = 128, .y = 0, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_PINKY_FRAME1] = { .x = 160, .y = 0, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_PINKY_FRAME2] = { .x = 192, .y = 0, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_INKY_FRAME1] = { .x = 224, .y = 0, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_INKY_FRAME2] = { .x = 0, .y = 32, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_CLYDE_FRAME1] = { .x = 32, .y = 32, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_CLYDE_FRAME2] = { .x = 64, .y = 32, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_GHOST_EATEN_UP_FRAME1] = { .x = 96, .y = 32, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_GHOST_EATEN_UP_FRAME2] = { .x = 128, .y = 32, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_GHOST_EATEN_LEFT_FRAME1] = { .x = 160, .y = 32, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_GHOST_EATEN_LEFT_FRAME2] = { .x = 192, .y = 32, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_GHOST_EATEN_DOWN_FRAME1] = { .x = 224, .y = 32, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_GHOST_EATEN_DOWN_FRAME2] = { .x = 0, .y = 64, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_GHOST_EATEN_RIGHT_FRAME1] = { .x = 32, .y = 64, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_GHOST_EATEN_RIGHT_FRAME2] = { .x = 64, .y = 64, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_GHOST_EATEN_FRAME3] = { .x = 96, .y = 64, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_GHOST_FRIGHTENED_FRAME1] = { .x = 128, .y = 64, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_GHOST_FRIGHTENED_FRAME2] = { .x = 160, .y = 64, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_GHOST_HOUSE_GATE] = { .x = 192, .y = 64, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_WALL_NORMAL] = { .x = 224, .y = 64, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_WALL_BOTTOM] = { .x = 0, .y = 96, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_PELLET] = { .x = 32, .y = 96, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_POWER_PELLET] = { .x = 64, .y = 96, .width = 32, .height = 32 },
-    [ATLAS_SPRITE_A] = { .x = 96, .y = 96, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_B] = { .x = 112, .y = 96, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_C] = { .x = 128, .y = 96, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_D] = { .x = 144, .y = 96, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_E] = { .x = 160, .y = 96, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_F] = { .x = 176, .y = 96, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_G] = { .x = 192, .y = 96, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_H] = { .x = 208, .y = 96, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_I] = { .x = 225, .y = 96, .width = 14, .height = 16 },
-    [ATLAS_SPRITE_J] = { .x = 240, .y = 96, .width = 15, .height = 16 },
-    [ATLAS_SPRITE_K] = { .x = 96, .y = 112, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_L] = { .x = 112, .y = 112, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_M] = { .x = 128, .y = 112, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_N] = { .x = 144, .y = 112, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_O] = { .x = 160, .y = 112, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_P] = { .x = 176, .y = 112, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_Q] = { .x = 192, .y = 112, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_R] = { .x = 208, .y = 112, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_S] = { .x = 224, .y = 112, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_T] = { .x = 240, .y = 112, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_U] = { .x = 0, .y = 128, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_V] = { .x = 16, .y = 128, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_W] = { .x = 32, .y = 128, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_X] = { .x = 48, .y = 128, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_Y] = { .x = 64, .y = 128, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_Z] = { .x = 80, .y = 128, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_0] = { .x = 96, .y = 128, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_1] = { .x = 120, .y = 128, .width = 6, .height = 16 },
-    [ATLAS_SPRITE_2] = { .x = 128, .y = 128, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_3] = { .x = 144, .y = 128, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_4] = { .x = 161, .y = 128, .width = 13, .height = 16 },
-    [ATLAS_SPRITE_5] = { .x = 176, .y = 128, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_6] = { .x = 192, .y = 128, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_7] = { .x = 208, .y = 128, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_8] = { .x = 224, .y = 128, .width = 16, .height = 16 },
-    [ATLAS_SPRITE_9] = { .x = 241, .y = 128, .width = 15, .height = 16 }
-};
-
-void get_atlas_sprite_rect(AtlasSprite id, Rect *r) {
-    assert(r && id >= 0 && id < ATLAS_SPRITE_COUNT);
-    memcpy(r, &atlas_sprites[id], sizeof(*r));
-}

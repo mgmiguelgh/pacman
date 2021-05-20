@@ -9,6 +9,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include "common.h"
 #include "render.h"
 
 typedef struct {
@@ -18,6 +19,8 @@ typedef struct {
 } TileCoord;
 
 typedef struct Level {
+    TileCoord ghost_start[GHOST_COUNT];
+    TileCoord player_start;
     TileCoord gate_tile;
     uint32_t pellet_count;
     uint32_t pellets_eaten;
@@ -74,6 +77,7 @@ static inline int32_t get_neighboring_tile_index(const Level *level, int32_t x, 
 }
 
 Level * load_next_level(void);
+Level * load_first_level(void);
 void unload_level(Level **level);
 
 #undef X_COORDS_VALID

@@ -10,5 +10,6 @@
 #include "level.h"
 
 Level * get_next_level_from_disk(void);
+void set_next_level_index(uint32_t index);
 
 #endif /* PLATFORM_H */
