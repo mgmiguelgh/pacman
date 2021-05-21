@@ -27,7 +27,7 @@ static inline int in_bounds(int32_t x, int32_t y, int32_t width, int32_t height)
 }
 
 static inline void set_pixel(int32_t x, int32_t y, Color4 color) {
-    bool should_render = color.a > 0.0f;
+    bool should_render = _mm_cvtss_f32(_mm_shuffle_ps(color.rgba, color.rgba, _MM_SHUFFLE(0, 2, 1, 3))) > 0.0f;
     if(should_render && in_bounds(x, y, DEFAULT_FRAMEBUFFER_WIDTH, DEFAULT_FRAMEBUFFER_HEIGHT)) {
         framebuffer[y * DEFAULT_FRAMEBUFFER_WIDTH + x] = color;
     }
@@ -43,12 +43,22 @@ static inline void add_light(int32_t x, int32_t y, float intensity) {
 }
 
 static inline Color4 convert_to_float_color(uint32_t color) {
-    return (Color4) {
-        .r = ((float)(color & 0xff) / 255.0f) * draw_color_intensity,
-        .g = ((float)((color >> 8) & 0xff) / 255.0f) * draw_color_intensity,
-        .b = ((float)((color >> 16) & 0xff) / 255.0f) * draw_color_intensity,
-        .a = (float)(!!((color >> 24) & 0xff))
-    };
+    int has_alpha = !!((color >> 24) & 0xff);
+    if(has_alpha) {
+        const __m128 black_color = _mm_set_ps(1.0f, 0.0f, 0.0f, 0.0f);
+        const __m128 white_color = _mm_set_ps(1.0f, 1.0f, 1.0f, 1.0f);
+        const __m128 intensity = _mm_set_ps1(draw_color_intensity);
+
+        return (Color4) {
+            // We only have black and white as a color, so we only need to check if any of the bits
+            // are set in the RGB channels to determine what color to return
+            .rgba = _mm_mul_ps(((color & 0xffffff) ? white_color : black_color), intensity)
+        };
+    } else {
+        return (Color4) {
+            .rgba = _mm_setzero_ps()
+        };
+    }
 }
 
 static void simple_forward_blit(const Texture2D *texture, int32_t dx, int32_t dy, const Rect *rect) {
@@ -191,12 +201,9 @@ void draw_spotlight(int32_t dx, int32_t dy, uint32_t radius, float gradient_leng
 
         for(int32_t x = start_x; x < end_x; x++) {
             int32_t dist_x = x - dx;
-            float x0 = (float)dist_x;
-
-            // TODO: Change the sqrtf to the rsqrt intrinsic
-            float n = (1.0f - (sqrtf(x0 * x0 + y0 * y0) * r_inv)) * gradient_length;
-
             if((dist_x * dist_x + dist_y * dist_y) < r2) {
+                float x0 = (float)dist_x;
+                float n = (1.0f - (sqrtf(x0 * x0 + y0 * y0) * r_inv)) * gradient_length;
                 add_light(x, y, n);
             }
         }
@@ -217,13 +224,11 @@ void submit_spotlights(void) {
         for(int32_t x = 0; x < DEFAULT_FRAMEBUFFER_WIDTH; x++) {
             Color4 *pixel = &framebuffer[y * DEFAULT_FRAMEBUFFER_WIDTH + x];
 
-            float intensity = light_buffer[y * DEFAULT_FRAMEBUFFER_WIDTH + x];
-            intensity = (intensity > dither_map[y%2][x%2]) ? 1.0f : 0.35f;
+            float light_level = light_buffer[y * DEFAULT_FRAMEBUFFER_WIDTH + x];
+            light_level = (light_level > dither_map[y%2][x%2]) ? 1.0f : 0.35f;
+            __m128 intensity = _mm_set_ps1(light_level);
 
-            pixel->r = pixel->r * intensity;
-            pixel->g = pixel->g * intensity;
-            pixel->b = pixel->b * intensity;
-            pixel->a = pixel->a * intensity;
+            pixel->rgba = _mm_mul_ps(pixel->rgba, intensity);
         }
     }
 }

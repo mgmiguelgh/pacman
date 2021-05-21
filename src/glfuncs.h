@@ -8,6 +8,7 @@
 #define GL_FUNCS_H
 
 #include <assert.h>
+#include "extern/glext.h"
 
 #ifdef _WIN32
 
@@ -29,8 +30,6 @@ PFNGLXSWAPINTERVALEXTPROC glXSwapIntervalEXT;
 #define GL_GET_PROC_ADDRESS(proc) glXGetProcAddress((const GLubyte *)proc)
 
 #endif
-
-#include "extern/glext.h"
 
 PFNGLCREATEPROGRAMPROC glCreateProgram;
 PFNGLCREATESHADERPROC glCreateShader;

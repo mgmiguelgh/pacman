@@ -7,6 +7,14 @@
 #ifndef RENDER_H
 #define RENDER_H
 
+#ifdef _WIN32
+#include <intrin.h>
+#define ALIGN_BYTES(bytes) __declspec(align(bytes))
+#elif __linux__
+#include <x86intrin.h>
+#define ALIGN_BYTES(bytes) __attribute__ ((aligned(bytes)))
+#endif
+
 #include <assert.h>
 #include <math.h>
 #include <stdint.h>
@@ -46,8 +54,8 @@ typedef struct {
     int32_t y;
 } Vector2i;
 
-typedef struct {
-    float r, g, b, a;
+typedef struct ALIGN_BYTES(16) {
+    __m128 rgba;
 } Color4;
 
 static inline Vector3 mat3_vec3_mul(const Matrix3x3 *mat, const Vector3 *vec) {
