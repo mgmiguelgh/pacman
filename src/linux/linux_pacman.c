@@ -165,7 +165,6 @@ int main(int argc, char **argv) {
     LINUX_CHECK_CREATION_ERROR(opengl_version[0] > 3 || (opengl_version[0] == 3 && opengl_version[1] >= 3),
                                "Could not obtain an OpenGL 3.3 or newer context!\n");
 
-    // Query all the level names
     query_all_level_names();
 
     glXSwapIntervalEXT(display, window, 1);
