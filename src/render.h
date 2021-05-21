@@ -14,6 +14,13 @@
 #include "common.h"
 #include "texture.h"
 
+#ifdef M_PI
+#undef M_PI
+#endif
+#ifdef M_PI_2
+#undef M_PI_2
+#endif
+
 #define M_PI     3.14159265359f
 #define M_PI_2   6.28318530718f
 

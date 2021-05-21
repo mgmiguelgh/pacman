@@ -4,7 +4,11 @@
  * Copyright (c) 2021 Amanch Esmailzadeh
  */
 
+#ifdef _WIN32
 #include <gl/gl.h>
+#elif __linux__
+#include <GL/gl.h>
+#endif
 #include <assert.h>
 #include <limits.h>
 #include <math.h>
@@ -92,6 +96,8 @@ static inline void set_game_state(GameState state) {
             game_data.ready_timer.running = true;
             game_data.ready_timer.elapsed = 0.0f;
             game_data.ready_timer.target = 3.0f;
+            break;
+        default:
             break;
     }
     game_data.previous_state = game_data.current_state;
@@ -557,10 +563,14 @@ bool update_loop(float dt, uint32_t input) {
                         break;
                     case MENU_ITEM_EXIT:
                         return false;
+                    default:
+                        break;
                 }
             }
             game_data.player.prev_input = input;
             return true;
+        default:
+            break;
     }
 
     camera_set_default_offset();
@@ -999,6 +1009,7 @@ void tile_coords_from_direction(TileCoord *coord, MovementDirection direction) {
             case MOVEMENT_DIR_LEFT: coord->x--; break;
             case MOVEMENT_DIR_RIGHT: coord->x++; break;
             case MOVEMENT_DIR_DOWN: coord->y++; break;
+            default: break;
         }
 
         wrap_tile_coords(coord, true);
@@ -1253,6 +1264,8 @@ void render_loop(float dt) {
 
             break;
         }
+        default:
+            break;
     }
 
     // OpenGL stuff

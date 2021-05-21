@@ -42,11 +42,7 @@ static struct {
     char *names;
     uint32_t count;
     uint32_t current;
-} level_files = {
-    .names = NULL,
-    .count = 0,
-    .current = 0
-};
+} level_files = { 0 };
 
 int level_name_compare(const void *lhs, const void *rhs) {
     return strcmp(lhs, rhs) > 0;
@@ -307,7 +303,7 @@ HGLRC win_setup_opengl(HDC device_context) {
     wglMakeCurrent(device_context, rendering_context);
 
     // Check if we obtained the correct OpenGL version
-    GLint opengl_version[2];
+    GLint opengl_version[2] = { 0 };
     glGetIntegerv(GL_MAJOR_VERSION, &opengl_version[0]);
     glGetIntegerv(GL_MINOR_VERSION, &opengl_version[1]);
     WIN_CHECK_CREATION_ERROR(opengl_version[0] > 3 || (opengl_version[0] == 3 && opengl_version[1] >= 3),
@@ -322,6 +318,12 @@ HGLRC win_setup_opengl(HDC device_context) {
 
 static HANDLE level_dir_handle;
 
+const char * get_next_level_name(void) {
+    const char *name = &level_files.names[level_files.current * (MAX_PATH + 1)];
+    level_files.current = (level_files.current + 1) % level_files.count;
+    return name;
+}
+#if 0
 Level * get_next_level_from_disk(void) {
     static char buf[9999];
     snprintf(buf, sizeof(buf), "data/level/%s", &level_files.names[level_files.current * (MAX_PATH + 1)]);
@@ -386,6 +388,7 @@ Level * get_next_level_from_disk(void) {
 
     return NULL;
 }
+#endif
 
 void set_next_level_index(uint32_t index) {
     level_files.current = index % level_files.count;

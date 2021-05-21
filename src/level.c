@@ -4,10 +4,77 @@
  * Copyright (c) 2021 Amanch Esmailzadeh
  */
 
+#include <assert.h>
+#include <string.h>
 #include "level.h"
 
+static Level * get_next_level(const char *file_name) {
+    assert(file_name);
+
+    static char buf[9999];
+    snprintf(buf, sizeof(buf), "data/level/%s", file_name);
+    FILE *f = fopen(buf, "rb");
+
+    if(f) {
+        static const char *delims = " ,\n\r";
+
+        int row_count = 0;
+        int max_column_count = 0;
+
+        // First determine how many tiles there are
+        while(fgets(buf, sizeof(buf), f)) {
+            row_count++;
+            int column_count = 0;
+
+            char *token;
+            char *b = buf;
+            while((token = strtok(b, delims)) != NULL) {
+                b = NULL;
+                column_count++;
+            }
+
+            if(column_count > max_column_count) {
+                max_column_count = column_count;
+            }
+        }
+
+        fseek(f, 0, SEEK_SET);
+
+        Level *level = calloc(1, offsetof(struct Level, data) + (row_count * max_column_count * sizeof(uint32_t)));
+        level->rows = row_count;
+        level->columns = max_column_count;
+
+        // Parse the level/tile data
+        int index = 0;
+        while(fgets(buf, sizeof(buf), f)) {
+            char *token;
+            char *b = buf;
+
+            while((token = strtok(b, delims)) != NULL) {
+                int value = atoi(token);
+                switch(value) {
+                    case -1:
+                        level->data[index] = ATLAS_SPRITE_EMPTY;
+                        break;
+                    default:
+                        level->data[index] = value;
+                        break;
+                }
+
+                b = NULL;
+                index++;
+            }
+        }
+
+        fclose(f);
+        return level;
+    }
+
+    return NULL;
+}
+
 Level * load_next_level(void) {
-    Level *level = get_next_level_from_disk();
+    Level *level = get_next_level(get_next_level_name());
     if(level) {
         for(uint32_t y = 0; y < level->rows; y++) {
             for(uint32_t x = 0; x < level->columns; x++) {

@@ -7,6 +7,8 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#include <stdbool.h>
+
 #define DEFAULT_WINDOW_WIDTH 1024
 #define DEFAULT_WINDOW_HEIGHT 576
 #define DEFAULT_FRAMEBUFFER_WIDTH 512

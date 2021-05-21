@@ -9,6 +9,7 @@
 
 #include <stdio.h>
 #include <stddef.h>
+#include <string.h>
 
 #pragma pack(push, 1)
 typedef struct {
@@ -91,7 +92,7 @@ static unsigned char * load_bmp_file(const char *path, uint32_t chroma_key, uint
                     for(uint32_t xb = 0, xd = 0; xb < width; xb += bytes_per_pixel, xd += CHANNEL_COUNT) {
                         uint32_t data_index = row_start + xd;
 
-                        uint32_t color;
+                        uint32_t color = 0;
                         memcpy(&color, &row_buffer[xb], bytes_per_pixel);
 
                         assign_color_op(&data[data_index], color, chroma_key);

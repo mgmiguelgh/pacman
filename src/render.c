@@ -7,6 +7,7 @@
 #include "render.h"
 #include <float.h>
 #include <stdbool.h>
+#include <math.h>
 
 static Color4 framebuffer[DEFAULT_FRAMEBUFFER_WIDTH * DEFAULT_FRAMEBUFFER_HEIGHT];
 static float light_buffer[DEFAULT_FRAMEBUFFER_WIDTH * DEFAULT_FRAMEBUFFER_HEIGHT];
