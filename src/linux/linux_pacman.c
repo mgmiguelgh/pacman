@@ -172,7 +172,7 @@ int main(int argc, char **argv) {
 
     struct timespec current, previous;
     clock_gettime(CLOCK_MONOTONIC, &current);
-    float elapsed_time = 0.0f;
+    double elapsed_time = 0.0;
 
     XEvent event;
     uint32_t input = 0;
@@ -241,15 +241,15 @@ int main(int argc, char **argv) {
             }
         }
 
-        running = update_loop(elapsed_time, input);
-        render_loop(elapsed_time);
+        running = update_loop((float)elapsed_time, input);
+        render_loop((float)elapsed_time);
         glXSwapBuffers(display, window);
 
         previous = current;
         clock_gettime(CLOCK_MONOTONIC, &current);
         uint64_t ticks_current = (current.tv_sec * 1000000000) + current.tv_nsec;
         uint64_t ticks_prev = (previous.tv_sec * 1000000000) + previous.tv_nsec;
-        elapsed_time = (float)(ticks_current - ticks_prev) / (float)1000000000;
+        elapsed_time = (double)(ticks_current - ticks_prev) / (double)1000000000;
 
     }
 

@@ -115,7 +115,7 @@ DWORD WINAPI win_game_init_and_run(LPVOID parameter) {
     HDC device_context = GetDC(window);
     HGLRC rendering_context = win_setup_opengl(device_context);
 
-    float elapsed_time = 0.0f;
+    double elapsed_time = 0.0;
     LARGE_INTEGER perf_freq;
     LARGE_INTEGER current_time;
     LARGE_INTEGER prev_time;
@@ -123,15 +123,15 @@ DWORD WINAPI win_game_init_and_run(LPVOID parameter) {
     QueryPerformanceCounter(&current_time);
 
     while(game_env_data.running) {
-        game_env_data.running = update_loop(elapsed_time, game_env_data.input);
+        game_env_data.running = update_loop((float)elapsed_time, game_env_data.input);
 
-        render_loop(elapsed_time);
+        render_loop((float)elapsed_time);
         SwapBuffers(device_context);
 
         prev_time = current_time;
         QueryPerformanceCounter(&current_time);
-        elapsed_time = (float)(current_time.QuadPart - prev_time.QuadPart) /
-            (float)perf_freq.QuadPart;
+        elapsed_time = (double)(current_time.QuadPart - prev_time.QuadPart) /
+            (double)perf_freq.QuadPart;
 
         elapsed_time = (elapsed_time < 1.0f) ? elapsed_time : 1.0f;
 
