@@ -190,7 +190,7 @@ static inline bool ghost_can_pass_gate(GhostEntity *ghost) {
 }
 
 static bool tile_is_wall(const TileCoord *coord, GhostEntity *ghost) {
-    if(coord) {
+    if(coord && coords_within_bounds(coord)) {
         uint32_t type = get_level_tile_data(game_data.level, coord);
 
         if(ghost_can_pass_gate(ghost)) {

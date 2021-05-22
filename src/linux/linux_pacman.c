@@ -255,8 +255,11 @@ int main(int argc, char **argv) {
 
     glXMakeCurrent(display, None, NULL);
     glXDestroyContext(display, gl_context);
+    XFree(visual_info);
     XDestroyWindow(display, window);
     XCloseDisplay(display);
+
+    free(level_files.names);
 
     return 0;
 }
