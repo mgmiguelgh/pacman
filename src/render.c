@@ -193,7 +193,7 @@ void draw_spotlight(int32_t dx, int32_t dy, uint32_t radius, float gradient_leng
 
     int32_t r2 = radius * radius;
 
-    float r_inv = 1.0f / (float)radius;
+    float r2_inv = 1.0f / (float)r2;
 
     for(int32_t y = start_y; y < end_y; y++) {
         int32_t dist_y = y - dy;
@@ -203,7 +203,7 @@ void draw_spotlight(int32_t dx, int32_t dy, uint32_t radius, float gradient_leng
             int32_t dist_x = x - dx;
             if((dist_x * dist_x + dist_y * dist_y) < r2) {
                 float x0 = (float)dist_x;
-                float n = (1.0f - (sqrtf(x0 * x0 + y0 * y0) * r_inv)) * gradient_length;
+                float n = (1.0f - ((x0 * x0 + y0 * y0) * r2_inv)) * gradient_length;
                 add_light(x, y, n);
             }
         }

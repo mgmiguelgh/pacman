@@ -1059,7 +1059,7 @@ void render_loop(float dt) {
             bias -= M_PI_2;
         }
         float t = (sinf(bias) + 1.0f) * 0.5f;
-        gradient = LERP(t, 2.0f, 4.0f);
+        gradient = LERP(t, 1.5f, 3.0f);
         radius = (int32_t)(LERP(t, 30.0f, 45.f));
     }
 
