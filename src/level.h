@@ -29,6 +29,12 @@ typedef struct Level {
     uint32_t data[];
 } Level;
 
+typedef struct {
+    char *names;
+    uint32_t count;
+    uint32_t current;
+} LevelFileData;
+
 #define X_COORDS_VALID(xcoord, level) ((xcoord) >= 0 && (xcoord) < (int32_t)(level)->columns)
 #define Y_COORDS_VALID(ycoord, level) ((ycoord) >= 0 && (ycoord) < (int32_t)(level)->rows)
 
@@ -75,6 +81,9 @@ static inline int32_t get_neighboring_tile_index(const Level *level, int32_t x, 
 
     return index;
 }
+
+void init_levels(void);
+void close_levels(void);
 
 Level * load_next_level(void);
 Level * load_first_level(void);

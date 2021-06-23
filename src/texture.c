@@ -54,14 +54,14 @@ static void assign_color_transparent(unsigned char *data, uint32_t color, uint32
     }
 }
 
-static unsigned char * load_bmp_file(const char *path, uint32_t chroma_key, uint32_t *w, uint32_t *h) {
+Texture2D * load_texture(const char *path, uint32_t chroma_key) {
+    Texture2D *tex = NULL;
+
     if(path) {
         FILE *f = fopen(path, "rb");
         if(f) {
             BitmapFile bmp = { 0 };
             fread(&bmp, sizeof(bmp), 1, f);
-
-            unsigned char *data = NULL;
 
             // We only support bitmaps that have the Windows header type and are at most v3
             if(bmp.file_header.type == 0x4d42 && bmp.bitmap_header.size == 40 &&
@@ -69,13 +69,16 @@ static unsigned char * load_bmp_file(const char *path, uint32_t chroma_key, uint
 
                 uint32_t bytes_per_pixel = bmp.bitmap_header.bits_per_pixel / 8;
 
-                uint32_t width = bmp.bitmap_header.width * bytes_per_pixel;
+                uint32_t width = bmp.bitmap_header.width;
                 uint32_t height = ABSOLUTE_VAL(bmp.bitmap_header.height);
+                tex = malloc(offsetof(struct Texture2D, data) + (width * height * CHANNEL_COUNT));
+                tex->width = width;
+                tex->height = height;
 
+                width *= bytes_per_pixel;
                 uint32_t scanline = (width + 3) & ~3;
                 uint32_t pixel_row_size = bmp.bitmap_header.width * CHANNEL_COUNT;
 
-                data = malloc(sizeof(*data) * pixel_row_size * height);
                 unsigned char *row_buffer = malloc(sizeof(*row_buffer) * scanline); // TODO: Perhaps change to alloca()?
 
                 uint32_t (*get_row_op)(uint32_t, uint32_t) = (bmp.bitmap_header.height >= 0) ?
@@ -95,43 +98,15 @@ static unsigned char * load_bmp_file(const char *path, uint32_t chroma_key, uint
                         uint32_t color = 0;
                         memcpy(&color, &row_buffer[xb], bytes_per_pixel);
 
-                        assign_color_op(&data[data_index], color, chroma_key);
+                        assign_color_op(&tex->data[data_index], color, chroma_key);
                     }
-                }
-
-                if(w) {
-                    *w = bmp.bitmap_header.width;
-                }
-
-                if(h) {
-                    *h = ABSOLUTE_VAL(bmp.bitmap_header.height);
                 }
 
                 free(row_buffer);
             }
 
             fclose(f);
-            if(data) {
-                return data;
-            }
         }
-    }
-
-    return NULL;
-}
-
-Texture2D * load_texture(const char *path, uint32_t chroma_key) {
-    Texture2D *tex = NULL;
-
-    uint32_t w, h;
-    unsigned char *data = load_bmp_file(path, chroma_key, &w, &h);
-    if(data) {
-        tex = malloc(offsetof(struct Texture2D, data) + (w * h * CHANNEL_COUNT));
-        tex->width = w;
-        tex->height = h;
-        memcpy(&tex->data, data, w * h * CHANNEL_COUNT);
-
-        free(data);
     }
 
     return tex;

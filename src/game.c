@@ -442,11 +442,13 @@ static void initialize_opengl(void) {
 
 void initialize_game(void) {
     initialize_opengl();
+    init_levels();
     reset_game();
 }
 
 void close_game(void) {
     destroy_texture(&game_data.atlas);
+    close_levels();
     unload_level(&game_data.level);
 }
 

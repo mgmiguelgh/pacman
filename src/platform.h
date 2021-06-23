@@ -9,7 +9,11 @@
 
 #include "level.h"
 
-const char * get_next_level_name(void);
-void set_next_level_index(uint32_t index);
+void init_level_names(LevelFileData *data);
+void destroy_level_names(LevelFileData *data);
+
+static int level_name_compare(const void *lhs, const void *rhs) {
+    return strcmp(lhs, rhs) > 0;
+}
 
 #endif /* PLATFORM_H */

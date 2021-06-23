@@ -28,17 +28,7 @@
 
 #define MAX_PATH 260 // Defined here to be the same as Windows
 
-static struct {
-    char *names;
-    uint32_t count;
-    uint32_t current;
-} level_files = { 0 };
-
-int level_name_compare(const void *lhs, const void *rhs) {
-    return strcmp(lhs, rhs) > 0;
-}
-
-static int select_best_fbx(Display *display, GLXFBConfig *framebuffers, int count) {
+static int select_best_fb(Display *display, GLXFBConfig *framebuffers, int count) {
     int idx = -1;
     int best_total_bits = -1;
     for(int i = 0; i < count; i++) {
@@ -70,32 +60,6 @@ static int select_best_fbx(Display *display, GLXFBConfig *framebuffers, int coun
     return idx;
 }
 
-static void query_all_level_names(void) {
-    DIR *d = opendir("data/level");
-    struct dirent *dir;
-    if(d) {
-        while((dir = readdir(d)) != NULL) {
-            if(dir->d_type == DT_REG) {
-                level_files.count++;
-            }
-        }
-        rewinddir(d);
-
-        level_files.names = calloc(1, (MAX_PATH + 1) * level_files.count);
-
-        int32_t index = 0;
-        while((dir = readdir(d)) != NULL) {
-            if(dir->d_type == DT_REG) {
-                memcpy(&level_files.names[index * (MAX_PATH + 1)], dir->d_name, MAX_PATH);
-                index++;
-            }
-        }
-
-        qsort(level_files.names, level_files.count, MAX_PATH + 1, level_name_compare);
-        closedir(d);
-    }
-}
-
 int main(int argc, char **argv) {
     srand((unsigned int)time(NULL));
 
@@ -123,9 +87,9 @@ int main(int argc, char **argv) {
     GLXFBConfig *glx_framebuffers = glXChooseFBConfig(display, screen, gl_attribs, &num_elements);
     LINUX_CHECK_CREATION_ERROR(glx_framebuffers, "Could not select a valid GLX Frame Buffer!\n");
 
-    int fbx_idx = select_best_fbx(display, glx_framebuffers, num_elements);
-    fbx_idx = (fbx_idx != -1) ? fbx_idx : 0;
-    GLXFBConfig selected_fb = glx_framebuffers[fbx_idx];
+    int fb_idx = select_best_fb(display, glx_framebuffers, num_elements);
+    fb_idx = (fb_idx != -1) ? fb_idx : 0;
+    GLXFBConfig selected_fb = glx_framebuffers[fb_idx];
     XFree(glx_framebuffers);
 
     XVisualInfo *visual_info = glXGetVisualFromFBConfig(display, selected_fb);
@@ -164,8 +128,6 @@ int main(int argc, char **argv) {
     glGetIntegerv(GL_MINOR_VERSION, &opengl_version[1]);
     LINUX_CHECK_CREATION_ERROR(opengl_version[0] > 3 || (opengl_version[0] == 3 && opengl_version[1] >= 3),
                                "Could not obtain an OpenGL 3.3 or newer context!\n");
-
-    query_all_level_names();
 
     glXSwapIntervalEXT(display, window, 1);
     initialize_game();
@@ -259,17 +221,35 @@ int main(int argc, char **argv) {
     XDestroyWindow(display, window);
     XCloseDisplay(display);
 
-    free(level_files.names);
-
     return 0;
 }
 
-const char * get_next_level_name(void) {
-    const char *name = &level_files.names[level_files.current * (MAX_PATH + 1)];
-    level_files.current = (level_files.current + 1) % level_files.count;
-    return name;
+void init_level_names(LevelFileData *data) {
+    DIR *d = opendir("data/level");
+    struct dirent *dir;
+    if(d) {
+        while((dir = readdir(d)) != NULL) {
+            if(dir->d_type == DT_REG) {
+                data->count++;
+            }
+        }
+        rewinddir(d);
+
+        data->names = calloc(1, (MAX_PATH + 1) * data->count);
+
+        int32_t index = 0;
+        while((dir = readdir(d)) != NULL) {
+            if(dir->d_type == DT_REG) {
+                memcpy(&data->names[index * (MAX_PATH + 1)], dir->d_name, MAX_PATH);
+                index++;
+            }
+        }
+
+        qsort(data->names, data->count, MAX_PATH + 1, level_name_compare);
+        closedir(d);
+    }
 }
 
-void set_next_level_index(uint32_t index) {
-    level_files.current = index % level_files.count;
+void destroy_level_names(LevelFileData *data) {
+    free(data->names);
 }

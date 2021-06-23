@@ -9,6 +9,32 @@
 #include <string.h>
 #include "level.h"
 
+static LevelFileData level_files;
+
+static const char * get_next_level_name(void) {
+    const char *name = &level_files.names[level_files.current * (MAX_PATH + 1)];
+    level_files.current = (level_files.current + 1) % level_files.count;
+    return name;
+}
+
+static void set_next_level_index(uint32_t index) {
+    level_files.current = index % level_files.count;
+}
+
+void init_levels(void) {
+    if(!level_files.names) {
+        memset(&level_files, 0, sizeof(level_files));
+        init_level_names(&level_files);
+    }
+}
+
+void close_levels(void) {
+    if(level_files.names) {
+        destroy_level_names(&level_files);
+        memset(&level_files, 0, sizeof(level_files));
+    }
+}
+
 static Level * get_next_level(const char *file_name) {
     assert(file_name);
 
@@ -75,6 +101,8 @@ static Level * get_next_level(const char *file_name) {
 }
 
 Level * load_next_level(void) {
+    init_levels();
+
     Level *level = get_next_level(get_next_level_name());
     if(level) {
         for(uint32_t y = 0; y < level->rows; y++) {
@@ -137,6 +165,8 @@ Level * load_next_level(void) {
 }
 
 Level * load_first_level(void) {
+    init_levels();
+
     set_next_level_index(0);
     return load_next_level();
 }

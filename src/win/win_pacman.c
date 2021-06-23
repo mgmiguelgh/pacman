@@ -38,16 +38,6 @@ volatile struct {
     .running = true
 };
 
-static struct {
-    char *names;
-    uint32_t count;
-    uint32_t current;
-} level_files = { 0 };
-
-int level_name_compare(const void *lhs, const void *rhs) {
-    return strcmp(lhs, rhs) > 0;
-}
-
 static DWORD get_window_style(void) {
     return WS_CAPTION | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SIZEBOX | WS_SYSMENU | WS_VISIBLE;
 }
@@ -193,31 +183,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev, LPSTR args, int cmd_show)
 
     GetClientRect(window, &client_rect);
 
-    // Query all the level names
-    static const char *level_dir = "data/level/*.csv";
-    WIN32_FIND_DATAA file_data;
-    HANDLE level_dir_handle = FindFirstFileA(level_dir, &file_data);
-    if(level_dir_handle) {
-        do {
-            level_files.count++;
-        } while(FindNextFileA(level_dir_handle, &file_data));
-        FindClose(level_dir_handle);
-
-        level_files.names = calloc(1, (MAX_PATH + 1) * level_files.count);
-
-        int32_t i = 0;
-        level_dir_handle = FindFirstFileA(level_dir, &file_data);
-        do {
-            memcpy(&level_files.names[i * (MAX_PATH + 1)], file_data.cFileName, MAX_PATH);
-            i++;
-        } while(FindNextFileA(level_dir_handle, &file_data));
-        FindClose(level_dir_handle);
-
-        qsort(level_files.names, level_files.count, MAX_PATH + 1, level_name_compare);
-    } else {
-        WIN_CHECK_CREATION_ERROR(0, "Failed to load any level data!\n");
-    }
-
     // We run the game on a different thread, so it doesn't freeze when dragging the window around
     game_env_data.semaphore = CreateSemaphoreW(NULL, 0, 1, NULL);
     HANDLE game_thread = CreateThread(NULL, 0, win_game_init_and_run, window, 0, NULL);
@@ -239,8 +204,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev, LPSTR args, int cmd_show)
     WaitForSingleObject(game_thread, INFINITE);
     CloseHandle(game_thread);
     CloseHandle(game_env_data.semaphore);
-
-    free(level_files.names);
 
     DestroyWindow(window);
 
@@ -316,14 +279,32 @@ HGLRC win_setup_opengl(HDC device_context) {
     return rendering_context;
 }
 
-static HANDLE level_dir_handle;
+void init_level_names(LevelFileData *data) {
+    static const char *level_dir = "data/level/*.csv";
+    WIN32_FIND_DATAA file_data;
+    HANDLE level_dir_handle = FindFirstFileA(level_dir, &file_data);
+    if(level_dir_handle) {
+        do {
+            data->count++;
+        } while(FindNextFileA(level_dir_handle, &file_data));
+        FindClose(level_dir_handle);
 
-const char * get_next_level_name(void) {
-    const char *name = &level_files.names[level_files.current * (MAX_PATH + 1)];
-    level_files.current = (level_files.current + 1) % level_files.count;
-    return name;
+        data->names = calloc(1, (MAX_PATH + 1) * data->count);
+
+        int32_t i = 0;
+        level_dir_handle = FindFirstFileA(level_dir, &file_data);
+        do {
+            memcpy(&data->names[i * (MAX_PATH + 1)], file_data.cFileName, MAX_PATH);
+            i++;
+        } while(FindNextFileA(level_dir_handle, &file_data));
+        FindClose(level_dir_handle);
+
+        qsort(data->names, data->count, MAX_PATH + 1, level_name_compare);
+    } else {
+        WIN_CHECK_CREATION_ERROR(0, "Failed to load any level data!\n");
+    }
 }
 
-void set_next_level_index(uint32_t index) {
-    level_files.current = index % level_files.count;
+void destroy_level_names(LevelFileData *data) {
+    free(data->names);
 }
