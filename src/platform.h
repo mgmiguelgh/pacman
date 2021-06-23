@@ -7,6 +7,8 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
+#include <string.h>
+
 #include "level.h"
 
 void init_level_names(LevelFileData *data);

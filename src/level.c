@@ -11,6 +11,10 @@
 
 static LevelFileData level_files;
 
+#ifndef __WIN32
+#define MAX_PATH 260 // Defined to be the same as Windows
+#endif
+
 static const char * get_next_level_name(void) {
     const char *name = &level_files.names[level_files.current * (MAX_PATH + 1)];
     level_files.current = (level_files.current + 1) % level_files.count;

@@ -26,8 +26,6 @@
         } \
     } while(0)
 
-#define MAX_PATH 260 // Defined here to be the same as Windows
-
 static int select_best_fb(Display *display, GLXFBConfig *framebuffers, int count) {
     int idx = -1;
     int best_total_bits = -1;
